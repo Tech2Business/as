@@ -61,7 +61,10 @@ class SentimentAPI {
   /**
    * Analiza el sentimiento de un texto - MEJORADO
    */
-  async analyzeSentiment(socialNetwork, content, keywords = []) {
+  async analyzeSentiment(socialNetwork, content, keywords) {
+    if (typeof keywords === 'undefined') {
+      keywords = [];
+    }
     try {
       const url = `${this.API_BASE_URL}/analyze-sentiment`;
       const payload = {
@@ -277,18 +280,32 @@ function getEmotionEmoji(emotion) {
 
 function getEmotionColor(emotion) {
   const colors = {
+    // Primarias
     feliz: '#fbbf24',
     triste: '#3b82f6',
     enojado: '#ef4444',
     neutral: '#9ca3af',
     asustado: '#a78bfa',
     sorprendido: '#ec4899',
+    disgustado: '#84cc16',
+    ansioso: '#f59e0b',
+    // Secundarias
     optimista: '#10b981',
     pesimista: '#64748b',
     confiado: '#06b6d4',
     confundido: '#f59e0b',
     impaciente: '#f97316',
-    agradecido: '#ec4899'
+    agradecido: '#ec4899',
+    orgulloso: '#8b5cf6',
+    frustrado: '#ef4444',
+    satisfecho: '#10b981',
+    decepcionado: '#64748b',
+    esperanzado: '#22c55e',
+    cinico: '#6b7280',
+    sarcastico: '#a855f7',
+    arrogante: '#f59e0b',
+    humilde: '#06b6d4',
+    despreciativo: '#dc2626'
   };
   
   return colors[emotion] || '#6b7280';
