@@ -8,7 +8,7 @@ class SentimentAPI {
     // Configuración de la API
     // IMPORTANTE: Reemplaza estos valores con tus credenciales reales
     this.SUPABASE_URL = 'https://lztfdemrqebqfjxjyksw.supabase.co';
-    this.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dGZkZW1ycWVicWZqeGp5a3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3OTc4OTAsImV4cCI6MjA3NjM3Mzg5MH0.Hoy-G8-ob2a70lBtGbo0f-MBLYi0iOS2ltohqgh8PpU';
+    this.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dGZkZW1ycWVicWZqeGp5a3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk0ODQ2MjMsImV4cCI6MjA0NTA2MDYyM30.IdhVWbJXSQbCUFHZgLlQpR0TcmOI5FqDMiZWVoCr2E8';
     this.API_BASE_URL = `${this.SUPABASE_URL}/functions/v1`;
     
     // Headers por defecto
@@ -20,8 +20,6 @@ class SentimentAPI {
 
   /**
    * Inicializa la API con configuración personalizada
-   * @param {string} supabaseUrl - URL del proyecto Supabase
-   * @param {string} supabaseKey - Anon key de Supabase
    */
   init(supabaseUrl, supabaseKey) {
     this.SUPABASE_URL = supabaseUrl;
@@ -32,7 +30,6 @@ class SentimentAPI {
 
   /**
    * Maneja los errores de las peticiones
-   * @param {Response} response - Respuesta del fetch
    */
   async handleResponse(response) {
     const data = await response.json();
@@ -46,10 +43,6 @@ class SentimentAPI {
 
   /**
    * Analiza el sentimiento de un texto
-   * @param {string} socialNetwork - Red social (email, whatsapp, etc)
-   * @param {string} content - Contenido a analizar
-   * @param {string[]} keywords - Array de palabras clave (opcional)
-   * @returns {Promise<Object>} Resultado del análisis
    */
   async analyzeSentiment(socialNetwork, content, keywords = []) {
     try {
@@ -72,20 +65,11 @@ class SentimentAPI {
 
   /**
    * Obtiene el historial de análisis
-   * @param {Object} params - Parámetros de consulta
-   * @param {number} params.limit - Número de resultados
-   * @param {number} params.page - Número de página
-   * @param {string} params.social_network - Filtrar por red social
-   * @param {number} params.min_score - Score mínimo
-   * @param {number} params.max_score - Score máximo
-   * @param {boolean} params.include_stats - Incluir estadísticas
-   * @returns {Promise<Object>} Historial de análisis
    */
   async getHistory(params = {}) {
     try {
       const queryParams = new URLSearchParams();
       
-      // Agregar parámetros no vacíos
       Object.keys(params).forEach(key => {
         if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
           queryParams.append(key, params[key]);
@@ -108,8 +92,6 @@ class SentimentAPI {
 
   /**
    * Verifica el estado del sistema
-   * @param {boolean} includeMetrics - Incluir métricas detalladas
-   * @returns {Promise<Object>} Estado del sistema
    */
   async healthCheck(includeMetrics = false) {
     try {
@@ -129,7 +111,6 @@ class SentimentAPI {
 
   /**
    * Obtiene estadísticas generales
-   * @returns {Promise<Object>} Estadísticas del sistema
    */
   async getStatistics() {
     try {
@@ -150,11 +131,6 @@ class SentimentAPI {
 // Utilidades del Cliente API
 // ============================================
 
-/**
- * Formatea un score de sentimiento a categoría
- * @param {number} score - Score (0-100)
- * @returns {Object} Categoría y color
- */
 function getSentimentCategory(score) {
   if (score >= 80) {
     return { label: 'Muy Positivo', color: '#10b981', emoji: '🤩' };
@@ -169,34 +145,25 @@ function getSentimentCategory(score) {
   }
 }
 
-/**
- * Formatea una fecha a formato legible
- * @param {string} dateString - Fecha en formato ISO
- * @returns {string} Fecha formateada
- */
 function formatDate(dateString) {
   const date = new Date(dateString);
   const now = new Date();
   const diff = now - date;
   
-  // Menos de 1 minuto
   if (diff < 60000) {
     return 'Hace un momento';
   }
   
-  // Menos de 1 hora
   if (diff < 3600000) {
     const minutes = Math.floor(diff / 60000);
     return `Hace ${minutes} minuto${minutes > 1 ? 's' : ''}`;
   }
   
-  // Menos de 24 horas
   if (diff < 86400000) {
     const hours = Math.floor(diff / 3600000);
     return `Hace ${hours} hora${hours > 1 ? 's' : ''}`;
   }
   
-  // Formato normal
   return new Intl.DateTimeFormat('es-ES', {
     year: 'numeric',
     month: 'short',
@@ -206,32 +173,11 @@ function formatDate(dateString) {
   }).format(date);
 }
 
-/**
- * Trunca un texto a una longitud máxima
- * @param {string} text - Texto a truncar
- * @param {number} maxLength - Longitud máxima
- * @returns {string} Texto truncado
- */
 function truncateText(text, maxLength = 100) {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength) + '...';
 }
 
-/**
- * Valida un email
- * @param {string} email - Email a validar
- * @returns {boolean} True si es válido
- */
-function isValidEmail(email) {
-  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return regex.test(email);
-}
-
-/**
- * Parsea keywords desde un string
- * @param {string} keywordsString - String de keywords separadas por comas
- * @returns {string[]} Array de keywords
- */
 function parseKeywords(keywordsString) {
   if (!keywordsString || keywordsString.trim() === '') return [];
   
@@ -239,14 +185,9 @@ function parseKeywords(keywordsString) {
     .split(',')
     .map(k => k.trim())
     .filter(k => k.length > 0)
-    .slice(0, 20); // Máximo 20 keywords
+    .slice(0, 20);
 }
 
-/**
- * Valida el contenido antes de enviarlo
- * @param {string} content - Contenido a validar
- * @returns {Object} Resultado de validación
- */
 function validateContent(content) {
   if (!content || content.trim() === '') {
     return { valid: false, error: 'El contenido no puede estar vacío' };
@@ -259,11 +200,6 @@ function validateContent(content) {
   return { valid: true };
 }
 
-/**
- * Obtiene el emoji de una red social
- * @param {string} network - Nombre de la red social
- * @returns {string} Emoji correspondiente
- */
 function getNetworkEmoji(network) {
   const emojis = {
     email: '📧',
@@ -279,11 +215,6 @@ function getNetworkEmoji(network) {
   return emojis[network] || '🌐';
 }
 
-/**
- * Obtiene el emoji de una emoción
- * @param {string} emotion - Nombre de la emoción
- * @returns {string} Emoji correspondiente
- */
 function getEmotionEmoji(emotion) {
   const emojis = {
     feliz: '😊',
@@ -303,11 +234,6 @@ function getEmotionEmoji(emotion) {
   return emojis[emotion] || '❓';
 }
 
-/**
- * Calcula el color de una emoción para gráficos
- * @param {string} emotion - Nombre de la emoción
- * @returns {string} Color hexadecimal
- */
 function getEmotionColor(emotion) {
   const colors = {
     feliz: '#fbbf24',
@@ -317,3 +243,104 @@ function getEmotionColor(emotion) {
     asustado: '#a78bfa',
     sorprendido: '#ec4899',
     optimista: '#10b981',
+    pesimista: '#64748b',
+    confiado: '#06b6d4',
+    confundido: '#f59e0b',
+    impaciente: '#f97316',
+    agradecido: '#ec4899'
+  };
+  
+  return colors[emotion] || '#6b7280';
+}
+
+function formatProcessingTime(seconds) {
+  if (seconds < 1) {
+    return `${Math.round(seconds * 1000)}ms`;
+  }
+  return `${seconds.toFixed(2)}s`;
+}
+
+class LocalStorageHelper {
+  constructor(prefix = 't2b_sentiment_') {
+    this.prefix = prefix;
+  }
+
+  setItem(key, value, ttl = null) {
+    try {
+      const item = {
+        value: value,
+        timestamp: Date.now(),
+        ttl: ttl
+      };
+      localStorage.setItem(this.prefix + key, JSON.stringify(item));
+    } catch (error) {
+      console.error('Error guardando en localStorage:', error);
+    }
+  }
+
+  getItem(key) {
+    try {
+      const itemStr = localStorage.getItem(this.prefix + key);
+      if (!itemStr) return null;
+
+      const item = JSON.parse(itemStr);
+      
+      if (item.ttl) {
+        const now = Date.now();
+        const elapsed = (now - item.timestamp) / 1000;
+        if (elapsed > item.ttl) {
+          this.removeItem(key);
+          return null;
+        }
+      }
+
+      return item.value;
+    } catch (error) {
+      console.error('Error leyendo de localStorage:', error);
+      return null;
+    }
+  }
+
+  removeItem(key) {
+    try {
+      localStorage.removeItem(this.prefix + key);
+    } catch (error) {
+      console.error('Error removiendo de localStorage:', error);
+    }
+  }
+
+  clear() {
+    try {
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.startsWith(this.prefix)) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.error('Error limpiando localStorage:', error);
+    }
+  }
+}
+
+// ============================================
+// Exportar instancias globales
+// ============================================
+
+window.sentimentAPI = new SentimentAPI();
+window.storageHelper = new LocalStorageHelper();
+window.SentimentUtils = {
+  getSentimentCategory,
+  formatDate,
+  truncateText,
+  parseKeywords,
+  validateContent,
+  getNetworkEmoji,
+  getEmotionEmoji,
+  getEmotionColor,
+  formatProcessingTime
+};
+
+console.log('✅ T2B Sentiment API Client inicializado');
+console.log('📡 API Base URL:', window.sentimentAPI.API_BASE_URL);
+console.log('⚠️ Recuerda configurar tus credenciales en api-client.js');

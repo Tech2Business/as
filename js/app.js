@@ -3,10 +3,6 @@
 // Lógica principal de la aplicación
 // ============================================
 
-// ============================================
-// Estado de la Aplicación
-// ============================================
-
 const AppState = {
   currentSection: 'analyze',
   isAnalyzing: false,
@@ -15,19 +11,16 @@ const AppState = {
   lastAnalysisId: null
 };
 
-// ============================================
-// Inicialización
-// ============================================
-
-document.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('load', () => {
   console.log('🚀 Inicializando T2B Sentiment Analysis...');
   
-  initializeApp();
+  setTimeout(() => {
+    initializeApp();
+  }, 100);
 });
 
 async function initializeApp() {
   try {
-    // Esperar a que los objetos globales estén disponibles
     if (typeof window.sentimentAPI === 'undefined') {
       console.error('❌ Error: sentimentAPI no está disponible');
       showToast('Error: API Client no se cargó correctamente', 'error');
@@ -47,10 +40,20 @@ async function initializeApp() {
     }
 
     console.log('✅ Todos los módulos cargados correctamente');
-
-// ============================================
-// Navegación entre Secciones
-// ============================================
+    
+    initializeNavigation();
+    initializeAnalysisForm();
+    initializeHistory();
+    
+    await window.dashboard.init();
+    await checkSystemHealth();
+    
+    console.log('✅ Aplicación inicializada correctamente');
+  } catch (error) {
+    console.error('❌ Error inicializando aplicación:', error);
+    showToast('Error al inicializar la aplicación', 'error');
+  }
+}
 
 function initializeNavigation() {
   const navButtons = document.querySelectorAll('.nav-btn');
@@ -64,7 +67,6 @@ function initializeNavigation() {
 }
 
 function navigateToSection(sectionName) {
-  // Actualizar botones
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.remove('active');
     if (btn.dataset.section === sectionName) {
@@ -72,7 +74,6 @@ function navigateToSection(sectionName) {
     }
   });
   
-  // Actualizar secciones
   document.querySelectorAll('.section').forEach(section => {
     section.classList.remove('active');
   });
@@ -82,10 +83,8 @@ function navigateToSection(sectionName) {
     targetSection.classList.add('active');
   }
   
-  // Actualizar estado
   AppState.currentSection = sectionName;
   
-  // Cargar datos si es necesario
   if (sectionName === 'history') {
     loadHistory();
   } else if (sectionName === 'stats') {
@@ -93,23 +92,17 @@ function navigateToSection(sectionName) {
   }
 }
 
-// ============================================
-// Formulario de Análisis
-// ============================================
-
 function initializeAnalysisForm() {
   const form = document.getElementById('analysis-form');
   const contentTextarea = document.getElementById('content');
   const charCount = document.getElementById('char-count');
   const clearBtn = document.getElementById('clear-btn');
   
-  // Contador de caracteres
   if (contentTextarea && charCount) {
     contentTextarea.addEventListener('input', () => {
       const length = contentTextarea.value.length;
       charCount.textContent = length;
       
-      // Cambiar color si se acerca al límite
       if (length > 9000) {
         charCount.style.color = 'var(--error)';
       } else if (length > 7500) {
@@ -120,12 +113,10 @@ function initializeAnalysisForm() {
     });
   }
   
-  // Submit del formulario
   if (form) {
     form.addEventListener('submit', handleAnalysisSubmit);
   }
   
-  // Botón de limpiar
   if (clearBtn) {
     clearBtn.addEventListener('click', clearForm);
   }
@@ -139,12 +130,10 @@ async function handleAnalysisSubmit(e) {
   }
   
   try {
-    // Obtener valores del formulario
     const socialNetwork = document.getElementById('social-network').value;
     const keywordsInput = document.getElementById('keywords').value;
     const content = document.getElementById('content').value;
     
-    // Validar
     if (!socialNetwork) {
       showToast('Por favor selecciona una red social', 'warning');
       return;
@@ -156,14 +145,11 @@ async function handleAnalysisSubmit(e) {
       return;
     }
     
-    // Parsear keywords
     const keywords = window.SentimentUtils.parseKeywords(keywordsInput);
     
-    // Mostrar loading
     setAnalyzeButtonLoading(true);
     AppState.isAnalyzing = true;
     
-    // Realizar análisis
     const response = await window.sentimentAPI.analyzeSentiment(
       socialNetwork,
       content,
@@ -171,16 +157,9 @@ async function handleAnalysisSubmit(e) {
     );
     
     if (response.success) {
-      // Guardar ID del análisis
       AppState.lastAnalysisId = response.data.analysis_id;
-      
-      // Mostrar resultados
       window.displayAnalysisResults(response.data);
-      
-      // Mostrar toast de éxito
       showToast('✨ Análisis completado exitosamente', 'success');
-      
-      // Guardar en historial local (cache)
       saveToLocalHistory(response.data, socialNetwork, content, keywords);
     } else {
       throw new Error(response.error?.message || 'Error en el análisis');
@@ -233,16 +212,11 @@ function saveToLocalHistory(data, socialNetwork, content, keywords) {
     analyzed_at: new Date().toISOString()
   };
   
-  // Guardar en localStorage (últimos 10 análisis)
   let localHistory = window.storageHelper.getItem('recent_analyses') || [];
   localHistory.unshift(historyItem);
   localHistory = localHistory.slice(0, 10);
-  window.storageHelper.setItem('recent_analyses', localHistory, 86400); // 24 horas
+  window.storageHelper.setItem('recent_analyses', localHistory, 86400);
 }
-
-// ============================================
-// Historial de Análisis
-// ============================================
 
 function initializeHistory() {
   const refreshBtn = document.getElementById('refresh-history-btn');
@@ -262,7 +236,6 @@ async function loadHistory(page = 1) {
     const tbody = document.getElementById('history-tbody');
     if (!tbody) return;
     
-    // Mostrar loading
     tbody.innerHTML = `
       <tr>
         <td colspan="6" class="loading-cell">
@@ -272,14 +245,12 @@ async function loadHistory(page = 1) {
       </tr>
     `;
     
-    // Preparar parámetros
     const params = {
       limit: 20,
       page: page,
       ...AppState.historyFilters
     };
     
-    // Obtener historial
     const response = await window.sentimentAPI.getHistory(params);
     
     if (response.success && response.data.length > 0) {
@@ -365,7 +336,6 @@ function displayPagination(metadata) {
   
   const { page, total_pages } = metadata;
   
-  // Botón anterior
   const prevBtn = document.createElement('button');
   prevBtn.className = 'pagination-btn';
   prevBtn.textContent = '← Anterior';
@@ -373,7 +343,6 @@ function displayPagination(metadata) {
   prevBtn.addEventListener('click', () => loadHistory(page - 1));
   paginationContainer.appendChild(prevBtn);
   
-  // Números de página
   const startPage = Math.max(1, page - 2);
   const endPage = Math.min(total_pages, page + 2);
   
@@ -386,7 +355,6 @@ function displayPagination(metadata) {
     paginationContainer.appendChild(pageBtn);
   }
   
-  // Botón siguiente
   const nextBtn = document.createElement('button');
   nextBtn.className = 'pagination-btn';
   nextBtn.textContent = 'Siguiente →';
@@ -394,7 +362,6 @@ function displayPagination(metadata) {
   nextBtn.addEventListener('click', () => loadHistory(page + 1));
   paginationContainer.appendChild(nextBtn);
   
-  // Info de página
   const pageInfo = document.createElement('span');
   pageInfo.style.marginLeft = 'var(--spacing-md)';
   pageInfo.style.color = 'var(--text-secondary)';
@@ -428,12 +395,7 @@ function applyHistoryFilters() {
 function viewAnalysisDetails(analysisId) {
   showToast('Funcionalidad de detalle en desarrollo', 'info');
   console.log('Ver análisis:', analysisId);
-  // TODO: Implementar modal con detalles completos
 }
-
-// ============================================
-// Sistema de Notificaciones Toast
-// ============================================
 
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
@@ -467,19 +429,13 @@ function showToast(message, type = 'info') {
   
   container.appendChild(toast);
   
-  // Auto-eliminar después de 5 segundos
   setTimeout(() => {
     toast.style.opacity = '0';
     setTimeout(() => toast.remove(), 300);
   }, 5000);
 }
 
-// Hacer showToast global
 window.showToast = showToast;
-
-// ============================================
-// Health Check del Sistema
-// ============================================
 
 async function checkSystemHealth() {
   try {
@@ -497,10 +453,6 @@ async function checkSystemHealth() {
   }
 }
 
-// ============================================
-// Manejo de Errores Global
-// ============================================
-
 window.addEventListener('error', (event) => {
   console.error('Error global capturado:', event.error);
 });
@@ -509,18 +461,12 @@ window.addEventListener('unhandledrejection', (event) => {
   console.error('Promise rechazada sin manejar:', event.reason);
 });
 
-// ============================================
-// Keyboard Shortcuts
-// ============================================
-
 document.addEventListener('keydown', (e) => {
-  // Ctrl/Cmd + K para limpiar formulario
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault();
     clearForm();
   }
   
-  // Ctrl/Cmd + Enter para enviar análisis
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     const form = document.getElementById('analysis-form');
     if (form && AppState.currentSection === 'analyze' && !AppState.isAnalyzing) {
@@ -529,7 +475,6 @@ document.addEventListener('keydown', (e) => {
     }
   }
   
-  // Alt + 1/2/3 para navegar entre secciones
   if (e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
     if (e.key === '1') {
       e.preventDefault();
@@ -544,10 +489,6 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ============================================
-// Performance Monitoring
-// ============================================
-
 if ('performance' in window) {
   window.addEventListener('load', () => {
     setTimeout(() => {
@@ -560,23 +501,6 @@ if ('performance' in window) {
   });
 }
 
-// ============================================
-// PWA Support (Opcional)
-// ============================================
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    // Descomentar si quieres añadir PWA support
-    // navigator.serviceWorker.register('/sw.js')
-    //   .then(reg => console.log('✅ Service Worker registrado'))
-    //   .catch(err => console.error('❌ Error en Service Worker:', err));
-  });
-}
-
-// ============================================
-// Exportar funciones útiles
-// ============================================
-
 window.AppFunctions = {
   navigateToSection,
   loadHistory,
@@ -585,10 +509,6 @@ window.AppFunctions = {
   viewAnalysisDetails,
   applyHistoryFilters
 };
-
-// ============================================
-// Log de Inicio
-// ============================================
 
 console.log(`
 ╔═══════════════════════════════════════╗
@@ -606,19 +526,4 @@ console.log(`
 📊 Dashboard: window.dashboard
 🛠️  Utilidades: window.SentimentUtils
 💾 Storage: window.storageHelper
-`);
-
-// ============================================
-// Configuración de Ejemplo
-// ============================================
-
-console.log(`
-⚠️  IMPORTANTE: Configura tus credenciales
-
-En api-client.js, actualiza:
-- SUPABASE_URL
-- SUPABASE_ANON_KEY
-
-O usa:
-window.sentimentAPI.init('tu-url', 'tu-key');
 `);

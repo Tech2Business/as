@@ -11,9 +11,6 @@ class Dashboard {
     };
   }
 
-  /**
-   * Inicializa el dashboard
-   */
   async init() {
     try {
       await this.loadStatistics();
@@ -24,15 +21,10 @@ class Dashboard {
     }
   }
 
-  /**
-   * Carga las estadísticas generales
-   */
   async loadStatistics() {
     try {
-      // Mostrar loading
       this.showStatsLoading();
 
-      // Obtener estadísticas
       const response = await window.sentimentAPI.getHistory({
         limit: 1000,
         include_stats: true
@@ -51,24 +43,18 @@ class Dashboard {
     }
   }
 
-  /**
-   * Actualiza las tarjetas de estadísticas
-   */
   updateStatCards(stats) {
-    // Total de análisis
     const totalEl = document.getElementById('total-analyses');
     if (totalEl) {
       this.animateNumber(totalEl, 0, stats.total_analyses, 1000);
     }
 
-    // Score promedio
     const avgScoreEl = document.getElementById('avg-score');
     if (avgScoreEl) {
       const avgScore = Math.round(stats.average_sentiment_score);
       this.animateNumber(avgScoreEl, 0, avgScore, 1000, '%');
     }
 
-    // Emoción más común
     const topEmotionEl = document.getElementById('top-emotion');
     if (topEmotionEl && stats.emotion_distribution) {
       const topEmotion = this.getTopEmotion(stats.emotion_distribution);
@@ -76,7 +62,6 @@ class Dashboard {
       topEmotionEl.textContent = `${emoji} ${this.capitalizeFirst(topEmotion)}`;
     }
 
-    // Canal más usado
     const topNetworkEl = document.getElementById('top-network');
     if (topNetworkEl && stats.network_distribution) {
       const topNetwork = this.getTopNetwork(stats.network_distribution);
@@ -85,24 +70,18 @@ class Dashboard {
     }
   }
 
-  /**
-   * Actualiza el gráfico de emociones
-   */
   updateEmotionsChart(emotionDistribution) {
     const ctx = document.getElementById('emotions-chart');
     if (!ctx) return;
 
-    // Destruir gráfico anterior si existe
     if (this.charts.emotions) {
       this.charts.emotions.destroy();
     }
 
-    // Preparar datos
     const emotions = Object.keys(emotionDistribution);
     const values = Object.values(emotionDistribution);
     const colors = emotions.map(e => window.SentimentUtils.getEmotionColor(e));
 
-    // Crear gráfico
     this.charts.emotions = new Chart(ctx, {
       type: 'doughnut',
       data: {
@@ -144,23 +123,17 @@ class Dashboard {
     });
   }
 
-  /**
-   * Actualiza el gráfico de redes sociales
-   */
   updateNetworksChart(networkDistribution) {
     const ctx = document.getElementById('networks-chart');
     if (!ctx) return;
 
-    // Destruir gráfico anterior si existe
     if (this.charts.networks) {
       this.charts.networks.destroy();
     }
 
-    // Preparar datos
     const networks = Object.keys(networkDistribution);
     const values = Object.values(networkDistribution);
 
-    // Crear gráfico
     this.charts.networks = new Chart(ctx, {
       type: 'bar',
       data: {
@@ -201,9 +174,6 @@ class Dashboard {
     });
   }
 
-  /**
-   * Anima un número desde start hasta end
-   */
   animateNumber(element, start, end, duration, suffix = '') {
     const range = end - start;
     const increment = range / (duration / 16);
@@ -219,34 +189,22 @@ class Dashboard {
     }, 16);
   }
 
-  /**
-   * Obtiene la emoción más frecuente
-   */
   getTopEmotion(distribution) {
     return Object.entries(distribution).reduce((a, b) => 
       distribution[a] > distribution[b[0]] ? a : b[0]
     );
   }
 
-  /**
-   * Obtiene la red social más usada
-   */
   getTopNetwork(distribution) {
     return Object.entries(distribution).reduce((a, b) => 
       distribution[a] > distribution[b[0]] ? a : b[0]
     );
   }
 
-  /**
-   * Capitaliza la primera letra
-   */
   capitalizeFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
-  /**
-   * Obtiene el nombre de la red social
-   */
   getNetworkName(network) {
     const names = {
       email: 'Email',
@@ -261,9 +219,6 @@ class Dashboard {
     return names[network] || network;
   }
 
-  /**
-   * Muestra estado de carga en estadísticas
-   */
   showStatsLoading() {
     const stats = ['total-analyses', 'avg-score', 'top-emotion', 'top-network'];
     stats.forEach(id => {
@@ -272,9 +227,6 @@ class Dashboard {
     });
   }
 
-  /**
-   * Muestra estado vacío en estadísticas
-   */
   showStatsEmpty() {
     const stats = ['total-analyses', 'avg-score', 'top-emotion', 'top-network'];
     stats.forEach(id => {
@@ -283,9 +235,6 @@ class Dashboard {
     });
   }
 
-  /**
-   * Muestra error en estadísticas
-   */
   showStatsError() {
     const stats = ['total-analyses', 'avg-score', 'top-emotion', 'top-network'];
     stats.forEach(id => {
@@ -294,45 +243,29 @@ class Dashboard {
     });
   }
 
-  /**
-   * Muestra un mensaje de error
-   */
   showError(message) {
-    window.showToast(message, 'error');
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, 'error');
+    }
   }
 }
 
-// ============================================
-// Funciones para Visualización de Resultados
-// ============================================
-
-/**
- * Muestra los resultados del análisis en la UI
- */
 function displayAnalysisResults(data) {
   const container = document.getElementById('results-container');
   if (!container) return;
 
-  // Mostrar contenedor
   container.style.display = 'block';
   container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-  // Actualizar score
   updateSentimentScore(data.sentiment_score);
-
-  // Actualizar emociones primarias
   displayEmotions('primary-emotions', data.primary_emotions);
-
-  // Actualizar emociones secundarias
   displayEmotions('secondary-emotions', data.secondary_emotions);
 
-  // Actualizar resumen
   const summaryEl = document.getElementById('summary-text');
   if (summaryEl) {
     summaryEl.textContent = data.analysis_summary;
   }
 
-  // Actualizar metadata
   const processingTimeEl = document.getElementById('processing-time');
   if (processingTimeEl) {
     processingTimeEl.textContent = window.SentimentUtils.formatProcessingTime(data.processing_time);
@@ -344,33 +277,25 @@ function displayAnalysisResults(data) {
     analysisIdEl.title = data.analysis_id;
   }
 
-  // Animación de entrada
   container.classList.add('fade-in');
 }
 
-/**
- * Actualiza el círculo de score
- */
 function updateSentimentScore(score) {
-  // Actualizar número
   const scoreNumber = document.getElementById('score-number');
   if (scoreNumber) {
     window.dashboard.animateNumber(scoreNumber, 0, Math.round(score), 800);
   }
 
-  // Actualizar círculo SVG
   const circle = document.getElementById('score-circle');
   if (circle) {
-    const circumference = 283; // 2 * PI * 45
+    const circumference = 283;
     const offset = circumference - (score / 100) * circumference;
     circle.style.strokeDashoffset = offset;
 
-    // Color basado en score
     const category = window.SentimentUtils.getSentimentCategory(score);
     circle.style.stroke = category.color;
   }
 
-  // Actualizar etiqueta
   const scoreLabel = document.getElementById('score-label');
   if (scoreLabel) {
     const category = window.SentimentUtils.getSentimentCategory(score);
@@ -380,16 +305,12 @@ function updateSentimentScore(score) {
   }
 }
 
-/**
- * Muestra las emociones en la UI
- */
 function displayEmotions(containerId, emotions) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
   container.innerHTML = '';
 
-  // Ordenar emociones por valor
   const sortedEmotions = Object.entries(emotions)
     .sort((a, b) => b[1] - a[1]);
 
@@ -417,19 +338,12 @@ function displayEmotions(containerId, emotions) {
   });
 }
 
-/**
- * Limpia los resultados del análisis
- */
 function clearAnalysisResults() {
   const container = document.getElementById('results-container');
   if (container) {
     container.style.display = 'none';
   }
 }
-
-// ============================================
-// Exportar instancia global
-// ============================================
 
 window.dashboard = new Dashboard();
 window.displayAnalysisResults = displayAnalysisResults;
