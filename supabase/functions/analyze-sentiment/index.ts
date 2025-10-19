@@ -1,6 +1,7 @@
 // ============================================
 // T2B Tech2Business - Sentiment Analysis API
 // Edge Function: analyze-sentiment
+// Version 1.1.0 - Limitado a 3+3 emociones
 // ============================================
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
@@ -153,35 +154,43 @@ async function analyzeWithGemini(
     ? keywords.join(', ') 
     : 'ninguna palabra clave específica';
 
-  const prompt = `Analiza el siguiente texto y determina las emociones presentes. 
+  // 🔥 PROMPT MODIFICADO: Solo 3 emociones de cada tipo
+  const prompt = `Analiza el siguiente texto y determina las 3 emociones primarias y 3 emociones secundarias más relevantes.
 Responde EXCLUSIVAMENTE con un JSON válido en este formato (sin markdown, sin bloques de código, solo el JSON):
 
 {
   "primary_emotions": {
-    "feliz": 0-100,
-    "triste": 0-100, 
-    "enojado": 0-100,
-    "neutral": 0-100,
-    "asustado": 0-100,
-    "sorprendido": 0-100
+    "emocion1": 0-100,
+    "emocion2": 0-100,
+    "emocion3": 0-100
   },
   "secondary_emotions": {
-    "optimista": 0-100,
-    "pesimista": 0-100,
-    "confiado": 0-100,
-    "confundido": 0-100,
-    "impaciente": 0-100,
-    "agradecido": 0-100
+    "emocion1": 0-100,
+    "emocion2": 0-100,
+    "emocion3": 0-100
   },
   "sentiment_score": 0-100,
-  "analysis_summary": "Resumen breve en español"
+  "analysis_summary": "Resumen breve del análisis en español (máximo 200 caracteres)"
 }
 
-IMPORTANTE: 
-- Todos los scores deben sumar aproximadamente 100 en cada categoría
-- sentiment_score es independiente (0=muy negativo, 50=neutral, 100=muy positivo)
+REGLAS CRÍTICAS:
+1. Debes retornar EXACTAMENTE 3 emociones primarias y 3 emociones secundarias
+2. Cada emoción debe tener un score entre 0-100
+3. Los 3 scores de primary_emotions deben sumar aproximadamente 100
+4. Los 3 scores de secondary_emotions deben sumar aproximadamente 100
+5. sentiment_score es independiente (0=muy negativo, 50=neutral, 100=muy positivo)
+
+Emociones primarias disponibles (elige las 3 más relevantes):
+- feliz, triste, enojado, neutral, asustado, sorprendido
+
+Emociones secundarias disponibles (elige las 3 más relevantes):
+- optimista, pesimista, confiado, confundido, impaciente, agradecido
+
+IMPORTANTE:
+- Selecciona solo las 3 emociones MÁS PRESENTES en el texto
+- Los nombres de emociones deben estar en minúsculas y en español
 - Considera el contexto y las palabras clave proporcionadas
-- Responde SOLO con el JSON, sin texto adicional
+- Responde SOLO con el JSON, sin texto adicional ni bloques de código
 
 Texto a analizar: "${content}"
 
@@ -194,7 +203,7 @@ Palabras clave a considerar: ${keywordsText}`;
       }]
     }],
     generationConfig: {
-      temperature: 0.3,
+      temperature: 0.4,
       topK: 40,
       topP: 0.95,
       maxOutputTokens: 1024,
@@ -240,10 +249,27 @@ Palabras clave a considerar: ${keywordsText}`;
 
     const analysis: GeminiResponse = JSON.parse(cleanedText);
 
-    // Validar estructura de la respuesta
+    // 🔥 VALIDACIÓN ESTRICTA: Exactamente 3 emociones de cada tipo
+    const primaryCount = Object.keys(analysis.primary_emotions).length;
+    const secondaryCount = Object.keys(analysis.secondary_emotions).length;
+
+    if (primaryCount !== 3) {
+      throw new Error(`Invalid primary emotions count: expected 3, got ${primaryCount}`);
+    }
+
+    if (secondaryCount !== 3) {
+      throw new Error(`Invalid secondary emotions count: expected 3, got ${secondaryCount}`);
+    }
+
+    // Validar estructura básica de la respuesta
     if (!analysis.primary_emotions || !analysis.secondary_emotions || 
         typeof analysis.sentiment_score !== 'number' || !analysis.analysis_summary) {
       throw new Error('Invalid analysis structure from Gemini');
+    }
+
+    // Validar que el sentiment_score esté en el rango válido
+    if (analysis.sentiment_score < 0 || analysis.sentiment_score > 100) {
+      throw new Error('sentiment_score must be between 0 and 100');
     }
 
     return analysis;
@@ -280,10 +306,9 @@ function getDominantEmotion(emotions: EmotionScores): string {
 
 function getEmotionEmojis(emotions: EmotionScores): string[] {
   return Object.entries(emotions)
-    .filter(([_, score]) => score > 10) // Solo emociones con score significativo
     .sort(([_, a], [__, b]) => b - a) // Ordenar por score descendente
     .map(([emotion, _]) => EMOTION_EMOJIS[emotion] || '❓')
-    .slice(0, 4); // Máximo 4 emojis
+    .slice(0, 3); // Exactamente 3 emojis
 }
 
 function logRequest(
@@ -312,8 +337,8 @@ function logRequest(
       client_ip: clientIp,
       user_agent: userAgent
     })
-    .then(() => console.log('Log guardado exitosamente'))
-    .catch((err: Error) => console.error('Error guardando log:', err.message));
+    .then(() => console.log('✅ Log guardado exitosamente'))
+    .catch((err: Error) => console.error('❌ Error guardando log:', err.message));
 }
 
 // ============================================
@@ -392,6 +417,7 @@ serve(async (req: Request) => {
     }
 
     // Realizar análisis con Gemini
+    console.log('🤖 Iniciando análisis con Gemini...');
     const analysisStartTime = Date.now();
     const geminiResponse = await analyzeWithGemini(
       body.content,
@@ -399,11 +425,13 @@ serve(async (req: Request) => {
       GEMINI_API_KEY
     );
     const processingTime = (Date.now() - analysisStartTime) / 1000;
+    console.log(`✅ Análisis completado en ${processingTime.toFixed(2)}s`);
 
     // Determinar emociones dominantes
     const dominantPrimary = getDominantEmotion(geminiResponse.primary_emotions);
     const dominantSecondary = getDominantEmotion(geminiResponse.secondary_emotions);
 
+    console.log('💾 Guardando en base de datos...');
     // Guardar en base de datos
     const { data: dbData, error: dbError } = await supabase
       .from('sentiment_analysis')
@@ -419,7 +447,7 @@ serve(async (req: Request) => {
         dominant_secondary_emotion: dominantSecondary,
         processing_time: processingTime,
         gemini_model: 'gemini-2.0-flash-exp',
-        api_version: '1.0.0',
+        api_version: '1.1.0',
         client_ip: clientIp,
         user_agent: userAgent
       })
@@ -429,6 +457,8 @@ serve(async (req: Request) => {
     if (dbError) {
       throw new Error(`Database error: ${dbError.message}`);
     }
+
+    console.log('✅ Análisis guardado con ID:', dbData.id);
 
     // Preparar respuesta
     const response: AnalysisResponse = {
@@ -472,14 +502,14 @@ serve(async (req: Request) => {
     const totalTime = (Date.now() - startTime) / 1000;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    console.error('Error in analyze-sentiment:', errorMessage);
+    console.error('❌ Error in analyze-sentiment:', errorMessage);
 
     const errorResponse: AnalysisResponse = {
       success: false,
       error: {
         message: 'Internal server error during sentiment analysis',
         code: 'INTERNAL_ERROR',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        details: Deno.env.get('DENO_ENV') === 'development' ? errorMessage : undefined
       }
     };
 
