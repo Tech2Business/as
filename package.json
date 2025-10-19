@@ -1,0 +1,52 @@
+{
+  "name": "t2b-sentiment-analysis",
+  "version": "1.0.0",
+  "description": "Sistema de Análisis de Sentimientos Omnicanal - T2B Tech2Business",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:migrate": "supabase db push",
+    "supabase:deploy": "supabase functions deploy",
+    "supabase:deploy:analyze": "supabase functions deploy analyze-sentiment",
+    "supabase:deploy:history": "supabase functions deploy get-analysis-history",
+    "supabase:deploy:health": "supabase functions deploy health-check",
+    "supabase:logs": "supabase functions logs",
+    "supabase:reset": "supabase db reset",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint . --ext .js,.ts",
+    "format": "prettier --write \"**/*.{js,ts,json,css,html}\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/t2b/sentiment-analysis.git"
+  },
+  "keywords": [
+    "sentiment-analysis",
+    "ai",
+    "gemini",
+    "supabase",
+    "vercel",
+    "t2b",
+    "tech2business",
+    "nlp",
+    "emotion-detection"
+  ],
+  "author": "T2B Tech2Business",
+  "license": "MIT",
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.38.4",
+    "@types/node": "^20.10.0",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

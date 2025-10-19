@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de Análisis de Sentimientos Omnicanal - T2B Tech2Business">
+    <meta name="author" content="T2B Tech2Business">
+    <title>T2B Sentiment Analysis | Análisis de Sentimientos con IA</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/brand-colors.css">
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🎯</span>
+                    <div class="logo-text">
+                        <h1>T2B Sentiment Analysis</h1>
+                        <p>Powered by Gemini AI</p>
+                    </div>
+                </div>
+                <nav class="nav">
+                    <button class="nav-btn active" data-section="analyze">
+                        <span class="icon">📊</span>
+                        Analizar
+                    </button>
+                    <button class="nav-btn" data-section="history">
+                        <span class="icon">📜</span>
+                        Historial
+                    </button>
+                    <button class="nav-btn" data-section="stats">
+                        <span class="icon">📈</span>
+                        Estadísticas
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            
+            <!-- Sección: Análisis -->
+            <section id="analyze-section" class="section active">
+                <div class="section-header">
+                    <h2>Análisis de Sentimientos</h2>
+                    <p>Analiza el sentimiento de cualquier texto usando IA</p>
+                </div>
+
+                <div class="analyze-grid">
+                    <!-- Formulario de Análisis -->
+                    <div class="card analysis-form">
+                        <h3>Datos de Entrada</h3>
+                        
+                        <form id="analysis-form">
+                            <!-- Red Social -->
+                            <div class="form-group">
+                                <label for="social-network">
+                                    <span class="icon">🌐</span>
+                                    Red Social / Canal
+                                </label>
+                                <select id="social-network" name="social_network" required>
+                                    <option value="">Selecciona un canal...</option>
+                                    <option value="email">📧 Email</option>
+                                    <option value="whatsapp">💬 WhatsApp</option>
+                                    <option value="twitter">🐦 Twitter (X)</option>
+                                    <option value="facebook">👥 Facebook</option>
+                                    <option value="instagram">📸 Instagram</option>
+                                    <option value="linkedin">💼 LinkedIn</option>
+                                    <option value="telegram">✈️ Telegram</option>
+                                    <option value="sms">📱 SMS</option>
+                                </select>
+                            </div>
+
+                            <!-- Keywords -->
+                            <div class="form-group">
+                                <label for="keywords">
+                                    <span class="icon">🏷️</span>
+                                    Palabras Clave (opcional)
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="keywords" 
+                                    name="keywords"
+                                    placeholder="Ej: urgente, satisfecho, problema (separadas por comas)"
+                                >
+                                <small>Máximo 20 palabras clave</small>
+                            </div>
+
+                            <!-- Contenido -->
+                            <div class="form-group">
+                                <label for="content">
+                                    <span class="icon">📝</span>
+                                    Contenido a Analizar
+                                </label>
+                                <textarea 
+                                    id="content" 
+                                    name="content" 
+                                    rows="8"
+                                    placeholder="Escribe o pega el texto que deseas analizar..."
+                                    required
+                                    maxlength="10000"
+                                ></textarea>
+                                <div class="char-counter">
+                                    <span id="char-count">0</span> / 10,000 caracteres
+                                </div>
+                            </div>
+
+                            <!-- Botones -->
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="clear-btn">
+                                    Limpiar
+                                </button>
+                                <button type="submit" class="btn btn-primary" id="analyze-btn">
+                                    <span class="btn-text">Analizar Sentimiento</span>
+                                    <span class="btn-loader"></span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Resultados del Análisis -->
+                    <div class="card analysis-results" id="results-container" style="display: none;">
+                        <h3>Resultados del Análisis</h3>
+                        
+                        <!-- Score General -->
+                        <div class="sentiment-score">
+                            <div class="score-circle">
+                                <svg viewBox="0 0 100 100">
+                                    <circle cx="50" cy="50" r="45" class="score-bg"></circle>
+                                    <circle cx="50" cy="50" r="45" class="score-fill" id="score-circle"></circle>
+                                </svg>
+                                <div class="score-value">
+                                    <span id="score-number">0</span>
+                                    <small>Score</small>
+                                </div>
+                            </div>
+                            <div class="score-label" id="score-label">Analizando...</div>
+                        </div>
+
+                        <!-- Emociones Primarias -->
+                        <div class="emotions-section">
+                            <h4>😊 Emociones Primarias</h4>
+                            <div class="emotions-list" id="primary-emotions"></div>
+                        </div>
+
+                        <!-- Emociones Secundarias -->
+                        <div class="emotions-section">
+                            <h4>✨ Emociones Secundarias</h4>
+                            <div class="emotions-list" id="secondary-emotions"></div>
+                        </div>
+
+                        <!-- Resumen -->
+                        <div class="analysis-summary">
+                            <h4>📋 Resumen del Análisis</h4>
+                            <p id="summary-text">Analizando el contenido...</p>
+                        </div>
+
+                        <!-- Metadata -->
+                        <div class="analysis-metadata">
+                            <div class="metadata-item">
+                                <span class="icon">⏱️</span>
+                                <span>Tiempo: <strong id="processing-time">-</strong></span>
+                            </div>
+                            <div class="metadata-item">
+                                <span class="icon">🆔</span>
+                                <span>ID: <strong id="analysis-id">-</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección: Historial -->
+            <section id="history-section" class="section">
+                <div class="section-header">
+                    <h2>Historial de Análisis</h2>
+                    <p>Consulta los análisis realizados anteriormente</p>
+                </div>
+
+                <!-- Filtros -->
+                <div class="card filters-card">
+                    <h3>Filtros</h3>
+                    <div class="filters-grid">
+                        <div class="form-group">
+                            <label for="filter-network">Red Social</label>
+                            <select id="filter-network">
+                                <option value="">Todas</option>
+                                <option value="email">Email</option>
+                                <option value="whatsapp">WhatsApp</option>
+                                <option value="twitter">Twitter</option>
+                                <option value="facebook">Facebook</option>
+                                <option value="instagram">Instagram</option>
+                                <option value="linkedin">LinkedIn</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="filter-min-score">Score Mínimo</label>
+                            <input type="number" id="filter-min-score" min="0" max="100" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="filter-max-score">Score Máximo</label>
+                            <input type="number" id="filter-max-score" min="0" max="100" placeholder="100">
+                        </div>
+                        <div class="form-group">
+                            <button class="btn btn-primary" id="apply-filters-btn">Aplicar Filtros</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Historial -->
+                <div class="card history-table-card">
+                    <div class="table-header">
+                        <h3>Análisis Recientes</h3>
+                        <button class="btn btn-secondary btn-sm" id="refresh-history-btn">
+                            🔄 Actualizar
+                        </button>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="history-table" id="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Canal</th>
+                                    <th>Score</th>
+                                    <th>Emoción</th>
+                                    <th>Preview</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <tr>
+                                    <td colspan="6" class="loading-cell">
+                                        Cargando historial...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Paginación -->
+                    <div class="pagination" id="pagination">
+                        <!-- Generado dinámicamente -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección: Estadísticas -->
+            <section id="stats-section" class="section">
+                <div class="section-header">
+                    <h2>Estadísticas Generales</h2>
+                    <p>Visualiza las tendencias y métricas del sistema</p>
+                </div>
+
+                <div class="stats-grid">
+                    <!-- Cards de Métricas -->
+                    <div class="card stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <h3 id="total-analyses">-</h3>
+                            <p>Total de Análisis</p>
+                        </div>
+                    </div>
+
+                    <div class="card stat-card">
+                        <div class="stat-icon">⭐</div>
+                        <div class="stat-content">
+                            <h3 id="avg-score">-</h3>
+                            <p>Score Promedio</p>
+                        </div>
+                    </div>
+
+                    <div class="card stat-card">
+                        <div class="stat-icon">😊</div>
+                        <div class="stat-content">
+                            <h3 id="top-emotion">-</h3>
+                            <p>Emoción Más Común</p>
+                        </div>
+                    </div>
+
+                    <div class="card stat-card">
+                        <div class="stat-icon">🌐</div>
+                        <div class="stat-content">
+                            <h3 id="top-network">-</h3>
+                            <p>Canal Más Usado</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="charts-grid">
+                    <div class="card chart-card">
+                        <h3>Distribución de Emociones</h3>
+                        <canvas id="emotions-chart"></canvas>
+                    </div>
+
+                    <div class="card chart-card">
+                        <h3>Análisis por Canal</h3>
+                        <canvas id="networks-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>&copy; 2024 T2B Tech2Business. Todos los derechos reservados.</p>
+                <p>Powered by <strong>Gemini AI</strong> • <strong>Supabase</strong> • <strong>Vercel</strong></p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/api-client.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+as/
+├── 📄 index.html
+├── 📄 package.json
+├── 📄 vercel.json
+├── 📄 .env.example
+├── 📄 .env
+├── 📄 .gitignore
+├── 📄 README.md
+├── 📄 DEPLOYMENT_GUIDE.md
+├── 📄 QUICK_START.md
+├── 📄 FRONTEND_SETUP.md
+├── 📄 setup.sh
+├── 📄 LICENSE
+│
+├── 📁 css/
+│   ├── 📄 brand-colors.css
+│   └── 📄 style.css
+│
+├── 📁 js/
+│   ├── 📄 api-client.js
+│   ├── 📄 dashboard.js
+│   └── 📄 app.js
+│
+├── 📁 supabase/
+│   ├── 📄 config.toml
+│   ├── 📁 migrations/
+│   │   └── 📄 001_initial_sentiment_analysis.sql
+│   └── 📁 functions/
+│       ├── 📁 _shared/
+│       │   ├── 📄 types.ts
+│       │   ├── 📄 utils.ts
+│       │   └── 📄 constants.ts
+│       ├── 📁 analyze-sentiment/
+│       │   └── 📄 index.ts
+│       ├── 📁 get-analysis-history/
+│       │   └── 📄 index.ts
+│       └── 📁 health-check/
+│           └── 📄 index.ts
+│
+├── 📁 docs/
+│   ├── 📄 API.md
+│   ├── 📄 DATABASE.md
+│   ├── 📄 CONTRIBUTING.md
+│   └── 📄 CHANGELOG.md
+│
+├── 📁 scripts/
+│   ├── 📄 deploy-all.sh
+│   ├── 📄 test-endpoints.sh
+│   ├── 📄 backup-db.sh
+│   └── 📄 cleanup-logs.sh
+│
+├── 📁 tests/
+│   ├── 📄 analyze.test.ts
+│   ├── 📄 history.test.ts
+│   └── 📄 health.test.ts
+│
+└── 📁 .github/
+    └── 📁 workflows/
+        ├── 📄 deploy.yml
+        └── 📄 test.yml
+
+TOTAL: 42 archivos en 14 carpetas
