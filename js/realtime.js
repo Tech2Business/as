@@ -48,7 +48,19 @@ class RealtimeManager {
    */
   async checkForUpdates() {
     try {
-      const currentSection = window.AppState ? window.AppState.currentSection : 'analyze';
+      // Obtener la sección activa buscando el elemento con clase 'active'
+      let currentSection = 'analyze';
+      const activeSectionElement = document.querySelector('.section.active');
+      if (activeSectionElement) {
+        const sectionId = activeSectionElement.id;
+        if (sectionId === 'history-section') {
+          currentSection = 'history';
+        } else if (sectionId === 'stats-section') {
+          currentSection = 'stats';
+        }
+      }
+      
+      console.log('🔍 Verificando actualizaciones en sección:', currentSection);
       
       // Solo actualizar si estamos en la sección de historial o estadísticas
       if (currentSection === 'history') {

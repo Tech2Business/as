@@ -500,4 +500,7 @@ window.AppFunctions = {
   applyHistoryFilters: applyHistoryFilters
 };
 
+// También hacer loadHistory accesible globalmente para compatibilidad
+window.loadHistory = loadHistory;
+
 console.log('\n╔═══════════════════════════════════════╗\n║   T2B SENTIMENT ANALYSIS SYSTEM      ║\n║   Powered by Gemini AI               ║\n║   Version 1.2.0 - All Fixed          ║\n╚═══════════════════════════════════════╝\n\n✨ Comandos disponibles:\n   - Ctrl/Cmd + K: Limpiar formulario\n   - Ctrl/Cmd + Enter: Enviar análisis\n   - Alt + 1/2/3: Navegar secciones\n\n📚 API Global: window.sentimentAPI\n📊 Dashboard: window.dashboard\n🛠️ Utilidades: window.SentimentUtils\n💾 Storage: window.storageHelper\n\n🔥 Dashboard con actualización automática\n🎭 23 emociones soportadas\n');
