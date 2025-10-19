@@ -26,7 +26,7 @@ class ChannelManager {
   }
 
   async init() {
-    console.log('📡 Inicializando Channel Manager v3.1.0 (Supabase + T2B)...');
+    console.log('✅ Channel Manager T2B iniciado');
     
     const channelSelect = document.getElementById('channel-select');
     if (channelSelect) {
@@ -40,19 +40,15 @@ class ChannelManager {
         }
       });
     }
-    
-    console.log('✅ Channel Manager inicializado con Supabase');
   }
 
   // ==================== SUPABASE - CARGA DE DATOS ====================
   
   async loadFromDatabase() {
     try {
-      console.log('📂 Cargando configuraciones desde Supabase...');
-      
       // Verificar si hay API disponible
       if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
-        console.log('⚠️ Supabase no disponible, usando localStorage');
+        console.log('⚠️ Modo demo: usando datos locales');
         this.loadFromStorage();
         return;
       }
@@ -71,7 +67,7 @@ class ChannelManager {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`HTTP ${response.status}`);
       }
 
       const configs = await response.json();
@@ -89,7 +85,7 @@ class ChannelManager {
       configs.forEach(config => {
         if (this.monitoredItems[config.channel_type]) {
           this.monitoredItems[config.channel_type].push({
-            id: config.id, // ID de Supabase
+            id: config.id,
             name: config.channel_name,
             ...config.config_data,
             created_at: config.created_at,
@@ -98,11 +94,10 @@ class ChannelManager {
         }
       });
 
-      console.log('✅ Configuraciones cargadas desde Supabase');
+      console.log('✅ Datos cargados');
       
     } catch (error) {
-      console.error('❌ Error cargando desde Supabase:', error);
-      console.log('⚠️ Usando localStorage como fallback');
+      console.log('⚠️ Modo demo activo');
       this.loadFromStorage();
     }
   }
@@ -111,10 +106,7 @@ class ChannelManager {
   
   async saveToDatabase(channelType, configData, configId = null) {
     try {
-      console.log('💾 Guardando en Supabase...');
-      
       if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
-        console.log('⚠️ Supabase no disponible, usando localStorage');
         this.saveToStorage();
         return null;
       }
@@ -133,7 +125,6 @@ class ChannelManager {
       let savedConfig;
 
       if (configId) {
-        // UPDATE - Actualizar configuración existente
         response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?id=eq.${configId}`, {
           method: 'PATCH',
           headers: {
@@ -145,16 +136,12 @@ class ChannelManager {
           body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const updated = await response.json();
         savedConfig = updated[0];
-        console.log('✅ Configuración actualizada en Supabase');
+        console.log('✅ Actualizado');
 
       } else {
-        // INSERT - Crear nueva configuración
         response = await fetch(`${supabaseUrl}/rest/v1/channel_configs`, {
           method: 'POST',
           headers: {
@@ -166,20 +153,15 @@ class ChannelManager {
           body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const created = await response.json();
         savedConfig = created[0];
-        console.log('✅ Configuración guardada en Supabase');
+        console.log('✅ Guardado');
       }
 
       return savedConfig;
 
     } catch (error) {
-      console.error('❌ Error guardando en Supabase:', error);
-      console.log('⚠️ Usando localStorage como fallback');
       this.saveToStorage();
       return null;
     }
@@ -189,10 +171,7 @@ class ChannelManager {
   
   async deleteFromDatabase(configId) {
     try {
-      console.log('🗑️ Eliminando de Supabase...');
-      
       if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
-        console.log('⚠️ Supabase no disponible');
         return false;
       }
 
@@ -208,15 +187,11 @@ class ChannelManager {
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      console.log('✅ Configuración eliminada de Supabase');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      console.log('✅ Eliminado');
       return true;
 
     } catch (error) {
-      console.error('❌ Error eliminando de Supabase:', error);
       return false;
     }
   }
@@ -601,8 +576,6 @@ class ChannelManager {
       return;
     }
 
-    console.log(`🗑️ Eliminando elemento. Canal: ${this.deleteItemChannel}, Motivo: ${reason}`);
-
     // Eliminar de Supabase
     if (this.deleteConfigId) {
       await this.deleteFromDatabase(this.deleteConfigId);
@@ -618,7 +591,7 @@ class ChannelManager {
       this.renderSocialConfig();
     }
 
-    this.saveToStorage(); // Actualizar localStorage
+    this.saveToStorage();
     this.triggerDataUpdate();
   }
 
@@ -627,9 +600,8 @@ class ChannelManager {
   saveToStorage() {
     try {
       localStorage.setItem('t2b_monitored_items', JSON.stringify(this.monitoredItems));
-      console.log('💾 Backup guardado en localStorage');
     } catch (error) {
-      console.error('Error guardando en localStorage:', error);
+      console.error('Error en almacenamiento local');
     }
   }
 
@@ -638,10 +610,9 @@ class ChannelManager {
       const stored = localStorage.getItem('t2b_monitored_items');
       if (stored) {
         this.monitoredItems = JSON.parse(stored);
-        console.log('📂 Configuración cargada desde localStorage');
       }
     } catch (error) {
-      console.error('Error cargando desde localStorage:', error);
+      console.error('Error cargando datos locales');
     }
   }
 
@@ -673,18 +644,22 @@ class ChannelManager {
   }
 
   simulateChannelData() {
+    // Verificar si hay canales configurados O si se seleccionó "Todos"
     const hasItems = Object.values(this.monitoredItems).some(items => items.length > 0);
+    const isAllChannels = this.currentChannel === 'all';
 
-    if (!hasItems) {
+    // Si no hay items y no es "todos", mostrar empty state
+    if (!hasItems && !isAllChannels) {
       document.getElementById('empty-state').style.display = 'flex';
       document.getElementById('results-container').classList.remove('active');
       return;
     }
 
+    // Mostrar resultados
     document.getElementById('empty-state').style.display = 'none';
     document.getElementById('results-container').classList.add('active');
 
-    // Generar datos simulados consolidados o por canal
+    // Generar datos simulados
     const sentimentData = {
       positive: Math.floor(Math.random() * 40) + 40,
       neutral: Math.floor(Math.random() * 20) + 20,
@@ -700,8 +675,17 @@ class ChannelManager {
     
     // Actualizar gráfica según canal seleccionado
     const activeChannels = this.getActiveChannels();
-    if (window.dashboard && typeof window.dashboard.updateNetworksChartByChannels === 'function') {
-      window.dashboard.updateNetworksChartByChannels(activeChannels, this.currentChannel);
+    
+    // Si hay canales o se seleccionó "all", actualizar gráfica
+    if ((activeChannels.length > 0 || isAllChannels) && window.dashboard) {
+      if (typeof window.dashboard.updateNetworksChartByChannels === 'function') {
+        // Si es "all", pasar todos los canales posibles
+        const channelsToShow = isAllChannels ? 
+          ['email', 'whatsapp', 'x', 'facebook', 'instagram', 'linkedin'] : 
+          activeChannels;
+        
+        window.dashboard.updateNetworksChartByChannels(channelsToShow, this.currentChannel);
+      }
     }
   }
 
