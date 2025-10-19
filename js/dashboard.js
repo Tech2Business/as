@@ -1,19 +1,21 @@
 // ============================================
-// T2B Tech2Business - Dashboard v3.0
-// Dashboard con integración de Canales Multimodal
+// T2B Tech2Business - Dashboard v3.1
+// Dashboard con Colores Corporativos T2B
+// Gráfica selectiva por canal
 // ============================================
 
 class Dashboard {
   constructor() {
     this.chart = null;
     this.channelData = {};
+    this.selectedChannel = null;
   }
 
   async init() {
     try {
       await this.initializeChart();
       await this.loadStatistics();
-      console.log('✅ Dashboard inicializado');
+      console.log('✅ Dashboard T2B inicializado');
     } catch (error) {
       console.error('Error inicializando dashboard:', error);
     }
@@ -31,21 +33,27 @@ class Dashboard {
           {
             label: 'Positivo',
             data: [],
-            backgroundColor: '#10b981',
+            backgroundColor: [],
+            borderColor: [],
+            borderWidth: 2,
             borderRadius: 8,
             stack: 'Stack 0'
           },
           {
             label: 'Neutral',
             data: [],
-            backgroundColor: '#f59e0b',
+            backgroundColor: [],
+            borderColor: [],
+            borderWidth: 2,
             borderRadius: 8,
             stack: 'Stack 0'
           },
           {
             label: 'Negativo',
             data: [],
-            backgroundColor: '#ef4444',
+            backgroundColor: [],
+            borderColor: [],
+            borderWidth: 2,
             borderRadius: 8,
             stack: 'Stack 0'
           }
@@ -61,15 +69,15 @@ class Dashboard {
         plugins: {
           legend: {
             labels: {
-              color: '#f1f5f9',
-              font: { size: 12, family: 'Inter' }
+              color: '#f8fbff',  // T2B White
+              font: { size: 12, family: 'Gotham, Inter' }
             }
           },
           tooltip: {
-            backgroundColor: '#1e293b',
-            titleColor: '#f1f5f9',
-            bodyColor: '#94a3b8',
-            borderColor: '#334155',
+            backgroundColor: '#f8fbff',  // T2B White
+            titleColor: '#111544',        // T2B Navy
+            bodyColor: '#6d9abc',         // T2B Blue
+            borderColor: '#d0d3d6',       // T2B Gray
             borderWidth: 1,
             padding: 12,
             displayColors: true
@@ -79,24 +87,24 @@ class Dashboard {
           x: {
             stacked: true,
             grid: { 
-              color: 'rgba(51, 65, 85, 0.3)',
+              color: 'rgba(208, 211, 214, 0.2)',  // T2B Gray transparent
               drawBorder: false
             },
             ticks: { 
-              color: '#94a3b8', 
-              font: { size: 11, family: 'Inter' }
+              color: '#f8fbff',  // T2B White
+              font: { size: 11, family: 'Gotham, Inter' }
             }
           },
           y: {
             stacked: true,
             beginAtZero: true,
             grid: { 
-              color: 'rgba(51, 65, 85, 0.3)',
+              color: 'rgba(208, 211, 214, 0.2)',  // T2B Gray transparent
               drawBorder: false
             },
             ticks: { 
-              color: '#94a3b8', 
-              font: { size: 11, family: 'Inter' }
+              color: '#f8fbff',  // T2B White
+              font: { size: 11, family: 'Gotham, Inter' }
             }
           }
         }
@@ -106,7 +114,6 @@ class Dashboard {
 
   async loadStatistics() {
     try {
-      // Intentar cargar desde la API
       const response = await window.sentimentAPI.getHistory({
         limit: 100,
         include_stats: true
@@ -116,8 +123,7 @@ class Dashboard {
         this.updateNetworksChart(response.statistics.network_distribution);
       }
     } catch (error) {
-      console.log('ℹ️ Usando datos simulados para demostración');
-      // Si falla la API, usar datos del channel manager
+      console.log('ℹ️ Usando datos simulados');
       this.updateWithChannelData();
     }
   }
@@ -128,13 +134,6 @@ class Dashboard {
     const activeChannels = window.channelManager.getActiveChannels();
     
     if (activeChannels.length === 0) return;
-
-    // Generar datos simulados para canales activos
-    const channelDistribution = {};
-    activeChannels.forEach(channel => {
-      const items = window.channelManager.getChannelData(channel);
-      channelDistribution[channel] = items.length;
-    });
 
     this.updateNetworksChartByChannels(activeChannels);
   }
@@ -154,20 +153,78 @@ class Dashboard {
     });
   }
 
-  updateNetworksChartByChannels(channels) {
+  updateNetworksChartByChannels(channels, selectedChannel = null) {
     if (!this.chart) return;
 
+    this.selectedChannel = selectedChannel;
     const labels = channels.map(ch => this.getNetworkName(ch));
     
-    // Generar datos simulados de sentimientos por canal
+    // Generar datos simulados por canal
     const positiveData = channels.map(() => Math.floor(Math.random() * 40) + 40);
     const neutralData = channels.map(() => Math.floor(Math.random() * 20) + 20);
     const negativeData = channels.map(() => Math.floor(Math.random() * 20) + 10);
 
+    // Función para determinar colores según selección
+    const getColors = (baseColor, index) => {
+      const channelName = channels[index];
+      
+      // Si se selecciona "Todos los canales" o no hay selección
+      if (!selectedChannel || selectedChannel === 'all') {
+        return {
+          backgroundColor: baseColor,
+          borderColor: baseColor
+        };
+      }
+      
+      // Si el canal actual es el seleccionado
+      if (channelName === selectedChannel) {
+        return {
+          backgroundColor: baseColor,
+          borderColor: baseColor
+        };
+      }
+      
+      // Si el canal NO es el seleccionado (transparente con borde)
+      return {
+        backgroundColor: 'transparent',
+        borderColor: '#d0d3d6'  // T2B Gray para contorno
+      };
+    };
+
+    // Colores para positivo, neutral, negativo
+    const positiveColor = '#10b981';
+    const neutralColor = '#f59e0b';
+    const negativeColor = '#ef4444';
+
+    // Aplicar colores dinámicamente
     this.chart.data.labels = labels;
+    
+    // Dataset Positivo
     this.chart.data.datasets[0].data = positiveData;
+    this.chart.data.datasets[0].backgroundColor = channels.map((_, i) => 
+      getColors(positiveColor, i).backgroundColor
+    );
+    this.chart.data.datasets[0].borderColor = channels.map((_, i) => 
+      getColors(positiveColor, i).borderColor
+    );
+    
+    // Dataset Neutral
     this.chart.data.datasets[1].data = neutralData;
+    this.chart.data.datasets[1].backgroundColor = channels.map((_, i) => 
+      getColors(neutralColor, i).backgroundColor
+    );
+    this.chart.data.datasets[1].borderColor = channels.map((_, i) => 
+      getColors(neutralColor, i).borderColor
+    );
+    
+    // Dataset Negativo
     this.chart.data.datasets[2].data = negativeData;
+    this.chart.data.datasets[2].backgroundColor = channels.map((_, i) => 
+      getColors(negativeColor, i).backgroundColor
+    );
+    this.chart.data.datasets[2].borderColor = channels.map((_, i) => 
+      getColors(negativeColor, i).borderColor
+    );
 
     this.chart.update({
       duration: 800,
@@ -254,7 +311,7 @@ class Dashboard {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       
-      // Easing suave tipo Power BI
+      // Easing suave
       const easeProgress = progress < 0.5
         ? 2 * progress * progress
         : 1 - Math.pow(-2 * progress + 2, 2) / 2;
@@ -278,9 +335,7 @@ class Dashboard {
       twitter: '𝕏 Twitter',
       facebook: '👥 Facebook',
       instagram: '📸 Instagram',
-      linkedin: '💼 LinkedIn',
-      telegram: '✈️ Telegram',
-      sms: '📱 SMS'
+      linkedin: '💼 LinkedIn'
     };
     return names[network] || network;
   }
@@ -312,6 +367,15 @@ class Dashboard {
   capitalizeFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
+
+  // Método para actualizar la gráfica según el canal seleccionado
+  setSelectedChannel(channel) {
+    this.selectedChannel = channel;
+    const activeChannels = window.channelManager ? window.channelManager.getActiveChannels() : [];
+    if (activeChannels.length > 0) {
+      this.updateNetworksChartByChannels(activeChannels, channel);
+    }
+  }
 }
 
 // ==================== FUNCIONES GLOBALES ====================
@@ -323,10 +387,7 @@ function displayAnalysisResults(data) {
   if (emptyState) emptyState.style.display = 'none';
   if (resultsContainer) resultsContainer.classList.add('active');
   
-  // Calcular KPIs de polaridad
   updatePolarityKPIs(data.sentiment_score);
-  
-  // Mostrar emociones con animación suave
   displayEmotions('primary-emotions', data.primary_emotions);
   displayEmotions('secondary-emotions', data.secondary_emotions);
 }
@@ -347,7 +408,6 @@ function updatePolarityKPIs(score) {
     positive = 100 - negative - neutral;
   }
   
-  // Animar KPIs con transición suave
   if (window.dashboard) {
     window.dashboard.animateNumber(document.getElementById('kpi-positive'), Math.round(positive));
     window.dashboard.animateNumber(document.getElementById('kpi-neutral'), Math.round(neutral));
@@ -364,7 +424,7 @@ function displayEmotions(containerId, emotions) {
   
   const sortedEmotions = Object.entries(emotions)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 3); // Solo las 3 principales
+    .slice(0, 3);
   
   sortedEmotions.forEach(([emotion, value], index) => {
     const emotionItem = document.createElement('div');
@@ -390,7 +450,6 @@ function displayEmotions(containerId, emotions) {
     container.appendChild(emotionItem);
   });
   
-  // Animar barras después de que se agreguen al DOM
   setTimeout(() => {
     document.querySelectorAll(`#${containerId} .emotion-bar-fill`).forEach(bar => {
       const width = bar.getAttribute('data-width');
@@ -406,13 +465,11 @@ function clearAnalysisResults() {
   if (emptyState) emptyState.style.display = 'flex';
   if (resultsContainer) resultsContainer.classList.remove('active');
   
-  // Limpiar KPIs
   ['kpi-positive', 'kpi-neutral', 'kpi-negative', 'kpi-score'].forEach(id => {
     const element = document.getElementById(id);
     if (element) element.textContent = '0';
   });
   
-  // Limpiar emociones
   ['primary-emotions', 'secondary-emotions'].forEach(id => {
     const element = document.getElementById(id);
     if (element) element.innerHTML = '';
@@ -424,4 +481,4 @@ window.dashboard = new Dashboard();
 window.displayAnalysisResults = displayAnalysisResults;
 window.clearAnalysisResults = clearAnalysisResults;
 
-console.log('✅ Dashboard v3.0 inicializado con integración multicanal');
+console.log('✅ Dashboard v3.1 T2B inicializado con colores corporativos');

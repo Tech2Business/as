@@ -1,7 +1,7 @@
 // ============================================
 // T2B Tech2Business - Channel Manager
 // Gestión de Canales Multimodal con Supabase
-// Version 2.0.0 - Integración con Base de Datos
+// Version 3.1.0 - Con Colores Corporativos T2B
 // ============================================
 
 class ChannelManager {
@@ -16,27 +16,32 @@ class ChannelManager {
       linkedin: []
     };
     this.editingIndex = -1;
-    this.editingConfigId = null; // Nuevo: ID de Supabase
+    this.editingConfigId = null; // ID de Supabase para edición
     this.deleteItemIndex = -1;
     this.deleteItemChannel = '';
-    this.deleteConfigId = null; // Nuevo: ID para eliminar de Supabase
+    this.deleteConfigId = null; // ID de Supabase para eliminación
     
-    // Cargar datos desde Supabase
+    // Cargar datos desde Supabase al iniciar
     this.loadFromDatabase();
   }
 
   async init() {
-    console.log('📡 Inicializando Channel Manager v2.0...');
+    console.log('📡 Inicializando Channel Manager v3.1.0 (Supabase + T2B)...');
     
     const channelSelect = document.getElementById('channel-select');
     if (channelSelect) {
       channelSelect.addEventListener('change', (e) => {
         this.currentChannel = e.target.value;
         this.renderChannelConfig();
+        
+        // NUEVO: Notificar al dashboard sobre el cambio de canal
+        if (window.dashboard && typeof window.dashboard.setSelectedChannel === 'function') {
+          window.dashboard.setSelectedChannel(this.currentChannel);
+        }
       });
     }
     
-    console.log('✅ Channel Manager inicializado');
+    console.log('✅ Channel Manager inicializado con Supabase');
   }
 
   // ==================== SUPABASE - CARGA DE DATOS ====================
@@ -55,7 +60,7 @@ class ChannelManager {
       const supabaseUrl = window.sentimentAPI.SUPABASE_URL;
       const supabaseKey = window.sentimentAPI.SUPABASE_ANON_KEY;
       
-      // Hacer petición GET a la tabla channel_configs
+      // Petición GET a channel_configs
       const response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?select=*&order=created_at.desc`, {
         method: 'GET',
         headers: {
@@ -84,7 +89,7 @@ class ChannelManager {
       configs.forEach(config => {
         if (this.monitoredItems[config.channel_type]) {
           this.monitoredItems[config.channel_type].push({
-            id: config.id, // Importante: guardar el ID de Supabase
+            id: config.id, // ID de Supabase
             name: config.channel_name,
             ...config.config_data,
             created_at: config.created_at,
@@ -96,7 +101,7 @@ class ChannelManager {
       console.log('✅ Configuraciones cargadas desde Supabase');
       
     } catch (error) {
-      console.error('Error cargando desde Supabase:', error);
+      console.error('❌ Error cargando desde Supabase:', error);
       console.log('⚠️ Usando localStorage como fallback');
       this.loadFromStorage();
     }
@@ -173,7 +178,7 @@ class ChannelManager {
       return savedConfig;
 
     } catch (error) {
-      console.error('Error guardando en Supabase:', error);
+      console.error('❌ Error guardando en Supabase:', error);
       console.log('⚠️ Usando localStorage como fallback');
       this.saveToStorage();
       return null;
@@ -211,7 +216,7 @@ class ChannelManager {
       return true;
 
     } catch (error) {
-      console.error('Error eliminando de Supabase:', error);
+      console.error('❌ Error eliminando de Supabase:', error);
       return false;
     }
   }
@@ -229,6 +234,36 @@ class ChannelManager {
       return;
     }
 
+    // NUEVO: Si se selecciona "Todos los Canales"
+    if (this.currentChannel === 'all') {
+      const activeChannels = this.getActiveChannels();
+      const totalItems = activeChannels.reduce((sum, channel) => {
+        return sum + this.monitoredItems[channel].length;
+      }, 0);
+
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: #111544; background: #f8fbff; border-radius: 10px; border: 1px solid #d0d3d6;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+          <h3 style="font-size: 1.125rem; margin-bottom: 0.5rem; color: #111544;">Vista Consolidada</h3>
+          <p style="font-size: 0.875rem; color: #6d9abc; margin-bottom: 1rem;">
+            Mostrando análisis de todos los canales configurados
+          </p>
+          <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+            <div style="background: #111544; color: #f8fbff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem;">
+              <strong>${activeChannels.length}</strong> canales activos
+            </div>
+            <div style="background: #6d9abc; color: #f8fbff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem;">
+              <strong>${totalItems}</strong> elementos monitoreados
+            </div>
+          </div>
+        </div>
+      `;
+      this.startMonitoring();
+      this.triggerDataUpdate();
+      return;
+    }
+
+    // Email y WhatsApp: Lista con CRUD
     if (this.currentChannel === 'email' || this.currentChannel === 'whatsapp') {
       container.innerHTML = `
         <div class="monitored-list">
@@ -241,6 +276,7 @@ class ChannelManager {
       `;
       this.renderMonitoredList();
     } else {
+      // Redes sociales: Configuración directa
       container.innerHTML = `
         <button class="add-btn" onclick="window.channelManager.openSocialModal()">
           <span>⚙️</span>
@@ -262,8 +298,9 @@ class ChannelManager {
 
     if (items.length === 0) {
       listContainer.innerHTML = `
-        <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-          No hay elementos configurados
+        <div style="text-align: center; padding: 2rem; color: #6d9abc; background: #f8fbff; border-radius: 10px; border: 1px solid #d0d3d6;">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;">📭</div>
+          <p style="font-size: 0.875rem;">No hay elementos configurados</p>
         </div>
       `;
       return;
@@ -397,7 +434,6 @@ class ChannelManager {
     const savedConfig = await this.saveToDatabase('email', emailData, this.editingConfigId);
 
     if (savedConfig) {
-      // Actualizar con el ID de Supabase
       emailData.id = savedConfig.id;
     }
 
@@ -627,10 +663,12 @@ class ChannelManager {
   }
 
   triggerDataUpdate() {
+    // Notificar al dashboard
     if (window.dashboard && typeof window.dashboard.updateWithChannelData === 'function') {
       window.dashboard.updateWithChannelData(this.monitoredItems);
     }
     
+    // Simular datos para demostración
     this.simulateChannelData();
   }
 
@@ -646,6 +684,7 @@ class ChannelManager {
     document.getElementById('empty-state').style.display = 'none';
     document.getElementById('results-container').classList.add('active');
 
+    // Generar datos simulados consolidados o por canal
     const sentimentData = {
       positive: Math.floor(Math.random() * 40) + 40,
       neutral: Math.floor(Math.random() * 20) + 20,
@@ -654,8 +693,15 @@ class ChannelManager {
     
     sentimentData.score = sentimentData.positive - sentimentData.negative;
 
+    // Actualizar KPIs
     if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
       window.dashboard.updateKPIs(sentimentData);
+    }
+    
+    // Actualizar gráfica según canal seleccionado
+    const activeChannels = this.getActiveChannels();
+    if (window.dashboard && typeof window.dashboard.updateNetworksChartByChannels === 'function') {
+      window.dashboard.updateNetworksChartByChannels(activeChannels, this.currentChannel);
     }
   }
 
@@ -688,4 +734,4 @@ if (document.readyState === 'loading') {
   window.channelManager.init();
 }
 
-console.log('✅ Channel Manager v2.0 cargado (con Supabase)');
+console.log('✅ Channel Manager v3.1.0 cargado (Supabase + T2B)');

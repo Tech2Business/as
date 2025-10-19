@@ -1,7 +1,16 @@
 /* ============================================
    T2B Tech2Business - Channels Styles
    Estilos para Gestión de Canales Multimodal
+   COLORES CORPORATIVOS T2B
    ============================================ */
+
+/* === COLORES CORPORATIVOS T2B === */
+:root {
+    --t2b-navy: #111544;           /* Azul marino principal */
+    --t2b-blue: #6d9abc;           /* Azul corporativo */
+    --t2b-gray: #d0d3d6;           /* Gris corporativo */
+    --t2b-white: #f8fbff;          /* Blanco corporativo */
+}
 
 /* === GRID PRINCIPAL === */
 .main-grid {
@@ -10,6 +19,7 @@
     gap: 1.5rem;
     padding: 1.5rem;
     height: calc(100vh - 85px);
+    background: var(--t2b-navy);   /* Background principal T2B */
 }
 
 /* === COLUMNA 1: CONFIGURACIÓN === */
