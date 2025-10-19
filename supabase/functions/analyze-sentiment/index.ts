@@ -155,9 +155,14 @@ async function analyzeWithGemini(
     ? keywords.join(', ') 
     : 'ninguna palabra clave específica';
 
-  // 🔥 PROMPT MODIFICADO: Solo 3 emociones de cada tipo
-  const prompt = `Analiza el siguiente texto y determina las 3 emociones primarias y 3 emociones secundarias más relevantes.
-Responde EXCLUSIVAMENTE con un JSON válido en este formato (sin markdown, sin bloques de código, solo el JSON):
+  // 🔥 PROMPT MEJORADO: Análisis profundo con más emociones
+  const prompt = `Eres un experto en análisis de sentimientos y psicología emocional. Analiza el siguiente texto considerando:
+- Tono explícito e implícito
+- Sarcasmo, ironía y contradicciones
+- Emociones subyacentes
+- Contexto social y emocional
+
+Responde EXCLUSIVAMENTE con un JSON válido (sin markdown, sin bloques de código):
 
 {
   "primary_emotions": {
@@ -171,31 +176,35 @@ Responde EXCLUSIVAMENTE con un JSON válido en este formato (sin markdown, sin b
     "emocion3": 0-100
   },
   "sentiment_score": 0-100,
-  "analysis_summary": "Resumen breve del análisis en español (máximo 200 caracteres)"
+  "analysis_summary": "Resumen del análisis emocional en español (máximo 200 caracteres)"
 }
 
-REGLAS CRÍTICAS:
-1. Debes retornar EXACTAMENTE 3 emociones primarias y 3 emociones secundarias
-2. Cada emoción debe tener un score entre 0-100
-3. Los 3 scores de primary_emotions deben sumar aproximadamente 100
-4. Los 3 scores de secondary_emotions deben sumar aproximadamente 100
-5. sentiment_score es independiente (0=muy negativo, 50=neutral, 100=muy positivo)
+REGLAS:
+1. Retorna EXACTAMENTE 3 emociones primarias y 3 secundarias
+2. Los 3 scores de cada categoría deben sumar aproximadamente 100
+3. sentiment_score: 0=muy negativo, 50=neutral, 100=muy positivo
+4. Detecta SARCASMO e IRONÍA - no tomes las palabras literalmente
+5. Considera emociones CONTRADICTORIAS que puedan coexistir
 
-Emociones primarias disponibles (elige las 3 más relevantes):
-- feliz, triste, enojado, neutral, asustado, sorprendido
+Emociones PRIMARIAS disponibles (elige las 3 más relevantes):
+- feliz, triste, enojado, neutral, asustado, sorprendido, disgustado, ansioso
 
-Emociones secundarias disponibles (elige las 3 más relevantes):
-- optimista, pesimista, confiado, confundido, impaciente, agradecido
+Emociones SECUNDARIAS disponibles (elige las 3 más relevantes):
+- optimista, pesimista, confiado, confundido, impaciente, agradecido, 
+- orgulloso, frustrado, satisfecho, decepcionado, esperanzado, 
+- cinico, sarcastico, arrogante, humilde, despreciativo
 
-IMPORTANTE:
-- Selecciona solo las 3 emociones MÁS PRESENTES en el texto
-- Los nombres de emociones deben estar en minúsculas y en español
-- Considera el contexto y las palabras clave proporcionadas
-- Responde SOLO con el JSON, sin texto adicional ni bloques de código
+ANÁLISIS PROFUNDO REQUERIDO:
+- Si detectas sarcasmo: prioriza la emoción REAL sobre las palabras literales
+- Si hay contradicciones: identifica la tensión emocional subyacente
+- Si hay autoafirmación excesiva: considera orgullo, arrogancia o frustración
+- Si menosprecia a otros: considera cinismo, desprecio o superioridad
 
 Texto a analizar: "${content}"
 
-Palabras clave a considerar: ${keywordsText}`;
+Palabras clave contextuales: ${keywordsText}
+
+Responde SOLO con el JSON, sin explicaciones adicionales.`;
 
   const requestBody = {
     contents: [{
