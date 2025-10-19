@@ -374,15 +374,15 @@ serve(async (req: Request) => {
   try {
     // Obtener variables de entorno
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !GEMINI_API_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !GEMINI_API_KEY) {
       throw new Error('Missing required environment variables');
     }
 
-    // Inicializar cliente Supabase
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Inicializar cliente Supabase con Service Role Key
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Parsear body
     let body: AnalysisRequest;
