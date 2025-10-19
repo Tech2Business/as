@@ -122,24 +122,7 @@ function initializeAnalysisForm() {
   }
 }
 
-async function handleAnalysisSubmit(e) {
-  e.preventDefault();
-  
-  if (AppState.isAnalyzing) {
-    return;
-  }
-  
-  try {
-    const socialNetwork = document.getElementById('social-network').value;
-    const keywordsInput = document.getElementById('keywords').value;
-    const content = document.getElementById('content').value;
-    
-    if (!socialNetwork) {
-      showToast('Por favor selecciona una red social', 'warning');
-      return;
-    }
-    
-    const validation = window.SentimentUtils.validateContent(content);
+ = window.SentimentUtils.validateContent(content);
     if (!validation.valid) {
       showToast(validation.error, 'error');
       return;
@@ -161,6 +144,18 @@ async function handleAnalysisSubmit(e) {
       window.displayAnalysisResults(response.data);
       showToast('✨ Análisis completado exitosamente', 'success');
       saveToLocalHistory(response.data, socialNetwork, content, keywords);
+      
+      // 🔥 ACTUALIZAR DASHBOARD AUTOMÁTICAMENTE
+      console.log('🔄 Actualizando estadísticas del dashboard...');
+      setTimeout(async () => {
+        try {
+          await window.dashboard.loadStatistics();
+          console.log('✅ Dashboard actualizado automáticamente');
+        } catch (error) {
+          console.error('❌ Error actualizando dashboard:', error);
+        }
+      }, 1500); // Esperar 1.5 segundos para asegurar que la DB se actualizó
+      
     } else {
       throw new Error(response.error?.message || 'Error en el análisis');
     }
@@ -514,7 +509,7 @@ console.log(`
 ╔═══════════════════════════════════════╗
 ║   T2B SENTIMENT ANALYSIS SYSTEM      ║
 ║   Powered by Gemini AI               ║
-║   Version 1.0.0                      ║
+║   Version 1.0.1 - Dashboard Fixed    ║
 ╚═══════════════════════════════════════╝
 
 ✨ Comandos disponibles:
@@ -524,6 +519,8 @@ console.log(`
 
 📚 API Global: window.sentimentAPI
 📊 Dashboard: window.dashboard
-🛠️  Utilidades: window.SentimentUtils
+🛠️ Utilidades: window.SentimentUtils
 💾 Storage: window.storageHelper
+
+🔥 NUEVO: Dashboard se actualiza automáticamente
 `);

@@ -1,6 +1,6 @@
 // ============================================
 // T2B Tech2Business - Dashboard
-// Visualizaciones y gráficos
+// Visualizaciones y gráficos - v1.2.0
 // ============================================
 
 class Dashboard {
@@ -58,7 +58,7 @@ class Dashboard {
     const topEmotionEl = document.getElementById('top-emotion');
     if (topEmotionEl && stats.emotion_distribution) {
       const topEmotion = this.getTopEmotion(stats.emotion_distribution);
-      const emoji = window.SentimentUtils.getEmotionEmoji(topEmotion);
+      const emoji = this.getEmotionEmoji(topEmotion);
       topEmotionEl.textContent = `${emoji} ${this.capitalizeFirst(topEmotion)}`;
     }
 
@@ -80,7 +80,7 @@ class Dashboard {
 
     const emotions = Object.keys(emotionDistribution);
     const values = Object.values(emotionDistribution);
-    const colors = emotions.map(e => window.SentimentUtils.getEmotionColor(e));
+    const colors = emotions.map(e => this.getEmotionColor(e));
 
     this.charts.emotions = new Chart(ctx, {
       type: 'doughnut',
@@ -219,6 +219,72 @@ class Dashboard {
     return names[network] || network;
   }
 
+  // 🔥 FUNCIÓN ACTUALIZADA con todas las emociones
+  getEmotionEmoji(emotion) {
+    const emojis = {
+      // Primarias
+      feliz: '😊',
+      triste: '😢',
+      enojado: '😠',
+      neutral: '😐',
+      asustado: '😨',
+      sorprendido: '😲',
+      disgustado: '🤢',
+      ansioso: '😰',
+      // Secundarias
+      optimista: '😄',
+      pesimista: '😔',
+      confiado: '😌',
+      confundido: '😕',
+      impaciente: '😤',
+      agradecido: '🙏',
+      orgulloso: '😏',
+      frustrado: '😣',
+      satisfecho: '😌',
+      decepcionado: '😞',
+      esperanzado: '🤞',
+      cinico: '🙄',
+      sarcastico: '😒',
+      arrogante: '😤',
+      humilde: '🙇',
+      despreciativo: '😒'
+    };
+    return emojis[emotion] || '❓';
+  }
+
+  // 🔥 FUNCIÓN ACTUALIZADA con colores para todas las emociones
+  getEmotionColor(emotion) {
+    const colors = {
+      // Primarias
+      feliz: '#fbbf24',
+      triste: '#3b82f6',
+      enojado: '#ef4444',
+      neutral: '#9ca3af',
+      asustado: '#a78bfa',
+      sorprendido: '#ec4899',
+      disgustado: '#84cc16',
+      ansioso: '#f59e0b',
+      // Secundarias
+      optimista: '#10b981',
+      pesimista: '#64748b',
+      confiado: '#06b6d4',
+      confundido: '#f59e0b',
+      impaciente: '#f97316',
+      agradecido: '#ec4899',
+      orgulloso: '#8b5cf6',
+      frustrado: '#ef4444',
+      satisfecho: '#10b981',
+      decepcionado: '#64748b',
+      esperanzado: '#22c55e',
+      cinico: '#6b7280',
+      sarcastico: '#a855f7',
+      arrogante: '#f59e0b',
+      humilde: '#06b6d4',
+      despreciativo: '#dc2626'
+    };
+    return colors[emotion] || '#6b7280';
+  }
+
   showStatsLoading() {
     const stats = ['total-analyses', 'avg-score', 'top-emotion', 'top-network'];
     stats.forEach(id => {
@@ -318,8 +384,8 @@ function displayEmotions(containerId, emotions) {
     const emotionItem = document.createElement('div');
     emotionItem.className = 'emotion-item';
 
-    const emoji = window.SentimentUtils.getEmotionEmoji(emotion);
-    const color = window.SentimentUtils.getEmotionColor(emotion);
+    const emoji = window.dashboard.getEmotionEmoji(emotion);
+    const color = window.dashboard.getEmotionColor(emotion);
 
     emotionItem.innerHTML = `
       <div class="emotion-emoji">${emoji}</div>
@@ -349,4 +415,4 @@ window.dashboard = new Dashboard();
 window.displayAnalysisResults = displayAnalysisResults;
 window.clearAnalysisResults = clearAnalysisResults;
 
-console.log('✅ Dashboard inicializado');
+console.log('✅ Dashboard v1.2.0 inicializado con soporte para todas las emociones');

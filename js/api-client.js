@@ -1,12 +1,12 @@
 // ============================================
 // T2B Tech2Business - API Client
 // Cliente para consumir la API de Sentiment Analysis
+// Version 1.1.0 - Con debugging mejorado
 // ============================================
 
 class SentimentAPI {
   constructor() {
     // Configuración de la API
-    // IMPORTANTE: Reemplaza estos valores con tus credenciales reales
     this.SUPABASE_URL = 'https://lztfdemrqebqfjxjyksw.supabase.co';
     this.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dGZkZW1ycWVicWZqeGp5a3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk0ODQ2MjMsImV4cCI6MjA0NTA2MDYyM30.IdhVWbJXSQbCUFHZgLlQpR0TcmOI5FqDMiZWVoCr2E8';
     this.API_BASE_URL = `${this.SUPABASE_URL}/functions/v1`;
@@ -29,36 +29,63 @@ class SentimentAPI {
   }
 
   /**
-   * Maneja los errores de las peticiones
+   * Maneja los errores de las peticiones - MEJORADO
    */
   async handleResponse(response) {
-    const data = await response.json();
+    // Intentar parsear la respuesta
+    let data;
+    try {
+      const text = await response.text();
+      console.log('📄 Response text:', text);
+      data = text ? JSON.parse(text) : {};
+    } catch (error) {
+      console.error('❌ Error parseando respuesta:', error);
+      throw new Error('Invalid JSON response from server');
+    }
     
     if (!response.ok) {
-      throw new Error(data.error?.message || 'Error en la petición');
+      console.error('❌ HTTP Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      });
+      
+      // Mensaje de error más específico
+      const errorMessage = data.error?.message || data.message || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(errorMessage);
     }
     
     return data;
   }
 
   /**
-   * Analiza el sentimiento de un texto
+   * Analiza el sentimiento de un texto - MEJORADO
    */
   async analyzeSentiment(socialNetwork, content, keywords = []) {
     try {
-      const response = await fetch(`${this.API_BASE_URL}/analyze-sentiment`, {
+      const url = `${this.API_BASE_URL}/analyze-sentiment`;
+      const payload = {
+        social_network: socialNetwork,
+        content: content,
+        keywords: keywords
+      };
+
+      console.log('🔄 Enviando petición a:', url);
+      console.log('📦 Payload:', payload);
+      console.log('🔑 Headers:', this.headers);
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: this.headers,
-        body: JSON.stringify({
-          social_network: socialNetwork,
-          content: content,
-          keywords: keywords
-        })
+        body: JSON.stringify(payload)
       });
+
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
 
       return await this.handleResponse(response);
     } catch (error) {
-      console.error('Error en analyzeSentiment:', error);
+      console.error('❌ Error en analyzeSentiment:', error);
       throw error;
     }
   }
@@ -217,18 +244,32 @@ function getNetworkEmoji(network) {
 
 function getEmotionEmoji(emotion) {
   const emojis = {
+    // Primarias
     feliz: '😊',
     triste: '😢',
     enojado: '😠',
     neutral: '😐',
     asustado: '😨',
     sorprendido: '😲',
+    disgustado: '🤢',
+    ansioso: '😰',
+    // Secundarias
     optimista: '😄',
     pesimista: '😔',
     confiado: '😌',
     confundido: '😕',
     impaciente: '😤',
-    agradecido: '🙏'
+    agradecido: '🙏',
+    orgulloso: '😏',
+    frustrado: '😣',
+    satisfecho: '😌',
+    decepcionado: '😞',
+    esperanzado: '🤞',
+    cinico: '🙄',
+    sarcastico: '😒',
+    arrogante: '😤',
+    humilde: '🙇',
+    despreciativo: '😒'
   };
   
   return emojis[emotion] || '❓';
@@ -341,6 +382,6 @@ window.SentimentUtils = {
   formatProcessingTime
 };
 
-console.log('✅ T2B Sentiment API Client inicializado');
+console.log('✅ T2B Sentiment API Client v1.1.0 inicializado');
 console.log('📡 API Base URL:', window.sentimentAPI.API_BASE_URL);
-console.log('⚠️ Recuerda configurar tus credenciales en api-client.js');
+console.log('🔍 Debug mode: ENABLED');
