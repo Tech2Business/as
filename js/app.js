@@ -324,4 +324,305 @@ function displayHistoryTable(data) {
   data.forEach(item => {
     const tr = document.createElement('tr');
     
-    const category = window.SentimentUtils.getSentimentCategory(item.
+    const category = window.SentimentUtils.getSentimentCategory(item.sentiment_score);
+    const networkEmoji = window.SentimentUtils.getNetworkEmoji(item.social_network);
+    const emotionEmoji = window.SentimentUtils.getEmotionEmoji(item.primary_emotion);
+    
+    tr.innerHTML = `
+      <td>${window.SentimentUtils.formatDate(item.created_at)}</td>
+      <td>
+        <span class="emotion-badge">
+          ${networkEmoji} ${window.dashboard.getNetworkName(item.social_network)}
+        </span>
+      </td>
+      <td>
+        <span class="score-badge" style="background: ${category.color}20; color: ${category.color}">
+          ${Math.round(item.sentiment_score)}
+        </span>
+      </td>
+      <td>
+        <span class="emotion-badge">
+          ${emotionEmoji} ${window.dashboard.capitalizeFirst(item.primary_emotion)}
+        </span>
+      </td>
+      <td>
+        <div class="content-preview" title="${item.content_preview || ''}">
+          ${item.content_preview || 'Sin preview'}
+        </div>
+      </td>
+      <td>
+        <button class="action-btn" onclick="viewAnalysisDetails('${item.id}')">
+          👁️ Ver
+        </button>
+      </td>
+    `;
+    
+    tbody.appendChild(tr);
+  });
+}
+
+function displayPagination(metadata) {
+  const paginationContainer = document.getElementById('pagination');
+  if (!paginationContainer) return;
+  
+  paginationContainer.innerHTML = '';
+  
+  const { page, total_pages } = metadata;
+  
+  // Botón anterior
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'pagination-btn';
+  prevBtn.textContent = '← Anterior';
+  prevBtn.disabled = page <= 1;
+  prevBtn.addEventListener('click', () => loadHistory(page - 1));
+  paginationContainer.appendChild(prevBtn);
+  
+  // Números de página
+  const startPage = Math.max(1, page - 2);
+  const endPage = Math.min(total_pages, page + 2);
+  
+  for (let i = startPage; i <= endPage; i++) {
+    const pageBtn = document.createElement('button');
+    pageBtn.className = 'pagination-btn';
+    if (i === page) pageBtn.classList.add('active');
+    pageBtn.textContent = i;
+    pageBtn.addEventListener('click', () => loadHistory(i));
+    paginationContainer.appendChild(pageBtn);
+  }
+  
+  // Botón siguiente
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'pagination-btn';
+  nextBtn.textContent = 'Siguiente →';
+  nextBtn.disabled = page >= total_pages;
+  nextBtn.addEventListener('click', () => loadHistory(page + 1));
+  paginationContainer.appendChild(nextBtn);
+  
+  // Info de página
+  const pageInfo = document.createElement('span');
+  pageInfo.style.marginLeft = 'var(--spacing-md)';
+  pageInfo.style.color = 'var(--text-secondary)';
+  pageInfo.textContent = `Página ${page} de ${total_pages}`;
+  paginationContainer.appendChild(pageInfo);
+}
+
+function applyHistoryFilters() {
+  const filterNetwork = document.getElementById('filter-network').value;
+  const filterMinScore = document.getElementById('filter-min-score').value;
+  const filterMaxScore = document.getElementById('filter-max-score').value;
+  
+  AppState.historyFilters = {};
+  
+  if (filterNetwork) {
+    AppState.historyFilters.social_network = filterNetwork;
+  }
+  
+  if (filterMinScore) {
+    AppState.historyFilters.min_score = parseFloat(filterMinScore);
+  }
+  
+  if (filterMaxScore) {
+    AppState.historyFilters.max_score = parseFloat(filterMaxScore);
+  }
+  
+  loadHistory(1);
+  showToast('Filtros aplicados', 'info');
+}
+
+function viewAnalysisDetails(analysisId) {
+  showToast('Funcionalidad de detalle en desarrollo', 'info');
+  console.log('Ver análisis:', analysisId);
+  // TODO: Implementar modal con detalles completos
+}
+
+// ============================================
+// Sistema de Notificaciones Toast
+// ============================================
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  
+  const icons = {
+    success: '✅',
+    error: '❌',
+    warning: '⚠️',
+    info: 'ℹ️'
+  };
+  
+  const titles = {
+    success: 'Éxito',
+    error: 'Error',
+    warning: 'Advertencia',
+    info: 'Información'
+  };
+  
+  toast.innerHTML = `
+    <div class="toast-icon">${icons[type]}</div>
+    <div class="toast-content">
+      <div class="toast-title">${titles[type]}</div>
+      <div class="toast-message">${message}</div>
+    </div>
+    <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+  `;
+  
+  container.appendChild(toast);
+  
+  // Auto-eliminar después de 5 segundos
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 5000);
+}
+
+// Hacer showToast global
+window.showToast = showToast;
+
+// ============================================
+// Health Check del Sistema
+// ============================================
+
+async function checkSystemHealth() {
+  try {
+    const response = await window.sentimentAPI.healthCheck(false);
+    
+    if (response.status === 'healthy') {
+      console.log('✅ Sistema saludable:', response);
+    } else {
+      console.warn('⚠️ Sistema con problemas:', response);
+      showToast('El sistema presenta algunos problemas', 'warning');
+    }
+  } catch (error) {
+    console.error('❌ Error en health check:', error);
+    showToast('No se pudo verificar el estado del sistema', 'error');
+  }
+}
+
+// ============================================
+// Manejo de Errores Global
+// ============================================
+
+window.addEventListener('error', (event) => {
+  console.error('Error global capturado:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Promise rechazada sin manejar:', event.reason);
+});
+
+// ============================================
+// Keyboard Shortcuts
+// ============================================
+
+document.addEventListener('keydown', (e) => {
+  // Ctrl/Cmd + K para limpiar formulario
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    clearForm();
+  }
+  
+  // Ctrl/Cmd + Enter para enviar análisis
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    const form = document.getElementById('analysis-form');
+    if (form && AppState.currentSection === 'analyze' && !AppState.isAnalyzing) {
+      e.preventDefault();
+      form.dispatchEvent(new Event('submit'));
+    }
+  }
+  
+  // Alt + 1/2/3 para navegar entre secciones
+  if (e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+    if (e.key === '1') {
+      e.preventDefault();
+      navigateToSection('analyze');
+    } else if (e.key === '2') {
+      e.preventDefault();
+      navigateToSection('history');
+    } else if (e.key === '3') {
+      e.preventDefault();
+      navigateToSection('stats');
+    }
+  }
+});
+
+// ============================================
+// Performance Monitoring
+// ============================================
+
+if ('performance' in window) {
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const perfData = performance.getEntriesByType('navigation')[0];
+      console.log('⚡ Performance:', {
+        loadTime: Math.round(perfData.loadEventEnd - perfData.fetchStart) + 'ms',
+        domReady: Math.round(perfData.domContentLoadedEventEnd - perfData.fetchStart) + 'ms'
+      });
+    }, 0);
+  });
+}
+
+// ============================================
+// PWA Support (Opcional)
+// ============================================
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    // Descomentar si quieres añadir PWA support
+    // navigator.serviceWorker.register('/sw.js')
+    //   .then(reg => console.log('✅ Service Worker registrado'))
+    //   .catch(err => console.error('❌ Error en Service Worker:', err));
+  });
+}
+
+// ============================================
+// Exportar funciones útiles
+// ============================================
+
+window.AppFunctions = {
+  navigateToSection,
+  loadHistory,
+  clearForm,
+  checkSystemHealth,
+  viewAnalysisDetails,
+  applyHistoryFilters
+};
+
+// ============================================
+// Log de Inicio
+// ============================================
+
+console.log(`
+╔═══════════════════════════════════════╗
+║   T2B SENTIMENT ANALYSIS SYSTEM      ║
+║   Powered by Gemini AI               ║
+║   Version 1.0.0                      ║
+╚═══════════════════════════════════════╝
+
+✨ Comandos disponibles:
+   - Ctrl/Cmd + K: Limpiar formulario
+   - Ctrl/Cmd + Enter: Enviar análisis
+   - Alt + 1/2/3: Navegar secciones
+
+📚 API Global: window.sentimentAPI
+📊 Dashboard: window.dashboard
+🛠️  Utilidades: window.SentimentUtils
+💾 Storage: window.storageHelper
+`);
+
+// ============================================
+// Configuración de Ejemplo
+// ============================================
+
+console.log(`
+⚠️  IMPORTANTE: Configura tus credenciales
+
+En api-client.js, actualiza:
+- SUPABASE_URL
+- SUPABASE_ANON_KEY
+
+O usa:
+window.sentimentAPI.init('tu-url', 'tu-key');
+`);
