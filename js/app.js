@@ -11,10 +11,10 @@ const AppState = {
   lastAnalysisId: null
 };
 
-window.addEventListener('load', () => {
+window.addEventListener('load', function() {
   console.log('🚀 Inicializando T2B Sentiment Analysis...');
   
-  setTimeout(() => {
+  setTimeout(function() {
     initializeApp();
   }, 100);
 });
@@ -58,8 +58,8 @@ async function initializeApp() {
 function initializeNavigation() {
   const navButtons = document.querySelectorAll('.nav-btn');
   
-  navButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
+  navButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
       const section = btn.dataset.section;
       navigateToSection(section);
     });
@@ -67,18 +67,18 @@ function initializeNavigation() {
 }
 
 function navigateToSection(sectionName) {
-  document.querySelectorAll('.nav-btn').forEach(btn => {
+  document.querySelectorAll('.nav-btn').forEach(function(btn) {
     btn.classList.remove('active');
     if (btn.dataset.section === sectionName) {
       btn.classList.add('active');
     }
   });
   
-  document.querySelectorAll('.section').forEach(section => {
+  document.querySelectorAll('.section').forEach(function(section) {
     section.classList.remove('active');
   });
   
-  const targetSection = document.getElementById(`${sectionName}-section`);
+  const targetSection = document.getElementById(sectionName + '-section');
   if (targetSection) {
     targetSection.classList.add('active');
   }
@@ -99,7 +99,7 @@ function initializeAnalysisForm() {
   const clearBtn = document.getElementById('clear-btn');
   
   if (contentTextarea && charCount) {
-    contentTextarea.addEventListener('input', () => {
+    contentTextarea.addEventListener('input', function() {
       const length = contentTextarea.value.length;
       charCount.textContent = length;
       
@@ -122,7 +122,24 @@ function initializeAnalysisForm() {
   }
 }
 
- = window.SentimentUtils.validateContent(content);
+async function handleAnalysisSubmit(e) {
+  e.preventDefault();
+  
+  if (AppState.isAnalyzing) {
+    return;
+  }
+  
+  try {
+    const socialNetwork = document.getElementById('social-network').value;
+    const keywordsInput = document.getElementById('keywords').value;
+    const content = document.getElementById('content').value;
+    
+    if (!socialNetwork) {
+      showToast('Por favor selecciona una red social', 'warning');
+      return;
+    }
+    
+    const validation = window.SentimentUtils.validateContent(content);
     if (!validation.valid) {
       showToast(validation.error, 'error');
       return;
@@ -147,17 +164,17 @@ function initializeAnalysisForm() {
       
       // 🔥 ACTUALIZAR DASHBOARD AUTOMÁTICAMENTE
       console.log('🔄 Actualizando estadísticas del dashboard...');
-      setTimeout(async () => {
+      setTimeout(async function() {
         try {
           await window.dashboard.loadStatistics();
           console.log('✅ Dashboard actualizado automáticamente');
         } catch (error) {
           console.error('❌ Error actualizando dashboard:', error);
         }
-      }, 1500); // Esperar 1.5 segundos para asegurar que la DB se actualizó
+      }, 1500);
       
     } else {
-      throw new Error(response.error?.message || 'Error en el análisis');
+      throw new Error(response.error ? response.error.message : 'Error en el análisis');
     }
     
   } catch (error) {
@@ -199,13 +216,12 @@ function clearForm() {
 }
 
 function saveToLocalHistory(data, socialNetwork, content, keywords) {
-  const historyItem = {
-    ...data,
+  const historyItem = Object.assign({}, data, {
     social_network: socialNetwork,
     content_preview: window.SentimentUtils.truncateText(content, 100),
     keywords: keywords,
     analyzed_at: new Date().toISOString()
-  };
+  });
   
   let localHistory = window.storageHelper.getItem('recent_analyses') || [];
   localHistory.unshift(historyItem);
@@ -218,7 +234,9 @@ function initializeHistory() {
   const applyFiltersBtn = document.getElementById('apply-filters-btn');
   
   if (refreshBtn) {
-    refreshBtn.addEventListener('click', () => loadHistory());
+    refreshBtn.addEventListener('click', function() {
+      loadHistory();
+    });
   }
   
   if (applyFiltersBtn) {
@@ -234,20 +252,12 @@ async function loadHistory(page) {
     const tbody = document.getElementById('history-tbody');
     if (!tbody) return;
     
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" class="loading-cell">
-          <div class="loader"></div>
-          Cargando historial...
-        </td>
-      </tr>
-    `;
+    tbody.innerHTML = '<tr><td colspan="6" class="loading-cell"><div class="loader"></div>Cargando historial...</td></tr>';
     
-    const params = {
+    const params = Object.assign({
       limit: 20,
-      page: page,
-      ...AppState.historyFilters
-    };
+      page: page
+    }, AppState.historyFilters);
     
     const response = await window.sentimentAPI.getHistory(params);
     
@@ -255,26 +265,14 @@ async function loadHistory(page) {
       displayHistoryTable(response.data);
       displayPagination(response.metadata);
     } else {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="6" class="loading-cell">
-            No hay análisis en el historial
-          </td>
-        </tr>
-      `;
+      tbody.innerHTML = '<tr><td colspan="6" class="loading-cell">No hay análisis en el historial</td></tr>';
     }
     
   } catch (error) {
     console.error('Error cargando historial:', error);
     const tbody = document.getElementById('history-tbody');
     if (tbody) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="6" class="loading-cell" style="color: var(--error)">
-            Error al cargar el historial
-          </td>
-        </tr>
-      `;
+      tbody.innerHTML = '<tr><td colspan="6" class="loading-cell" style="color: var(--error)">Error al cargar el historial</td></tr>';
     }
     showToast('Error al cargar el historial', 'error');
   }
@@ -286,41 +284,19 @@ function displayHistoryTable(data) {
   
   tbody.innerHTML = '';
   
-  data.forEach(item => {
+  data.forEach(function(item) {
     const tr = document.createElement('tr');
     
     const category = window.SentimentUtils.getSentimentCategory(item.sentiment_score);
     const networkEmoji = window.SentimentUtils.getNetworkEmoji(item.social_network);
     const emotionEmoji = window.SentimentUtils.getEmotionEmoji(item.primary_emotion);
     
-    tr.innerHTML = `
-      <td>${window.SentimentUtils.formatDate(item.created_at)}</td>
-      <td>
-        <span class="emotion-badge">
-          ${networkEmoji} ${window.dashboard.getNetworkName(item.social_network)}
-        </span>
-      </td>
-      <td>
-        <span class="score-badge" style="background: ${category.color}20; color: ${category.color}">
-          ${Math.round(item.sentiment_score)}
-        </span>
-      </td>
-      <td>
-        <span class="emotion-badge">
-          ${emotionEmoji} ${window.dashboard.capitalizeFirst(item.primary_emotion)}
-        </span>
-      </td>
-      <td>
-        <div class="content-preview" title="${item.content_preview || ''}">
-          ${item.content_preview || 'Sin preview'}
-        </div>
-      </td>
-      <td>
-        <button class="action-btn" onclick="viewAnalysisDetails('${item.id}')">
-          👁️ Ver
-        </button>
-      </td>
-    `;
+    tr.innerHTML = '<td>' + window.SentimentUtils.formatDate(item.created_at) + '</td>' +
+      '<td><span class="emotion-badge">' + networkEmoji + ' ' + window.dashboard.getNetworkName(item.social_network) + '</span></td>' +
+      '<td><span class="score-badge" style="background: ' + category.color + '20; color: ' + category.color + '">' + Math.round(item.sentiment_score) + '</span></td>' +
+      '<td><span class="emotion-badge">' + emotionEmoji + ' ' + window.dashboard.capitalizeFirst(item.primary_emotion) + '</span></td>' +
+      '<td><div class="content-preview" title="' + (item.content_preview || '') + '">' + (item.content_preview || 'Sin preview') + '</div></td>' +
+      '<td><button class="action-btn" onclick="viewAnalysisDetails(\'' + item.id + '\')">👁️ Ver</button></td>';
     
     tbody.appendChild(tr);
   });
@@ -332,13 +308,16 @@ function displayPagination(metadata) {
   
   paginationContainer.innerHTML = '';
   
-  const { page, total_pages } = metadata;
+  const page = metadata.page;
+  const total_pages = metadata.total_pages;
   
   const prevBtn = document.createElement('button');
   prevBtn.className = 'pagination-btn';
   prevBtn.textContent = '← Anterior';
   prevBtn.disabled = page <= 1;
-  prevBtn.addEventListener('click', () => loadHistory(page - 1));
+  prevBtn.addEventListener('click', function() {
+    loadHistory(page - 1);
+  });
   paginationContainer.appendChild(prevBtn);
   
   const startPage = Math.max(1, page - 2);
@@ -349,7 +328,9 @@ function displayPagination(metadata) {
     pageBtn.className = 'pagination-btn';
     if (i === page) pageBtn.classList.add('active');
     pageBtn.textContent = i;
-    pageBtn.addEventListener('click', () => loadHistory(i));
+    pageBtn.addEventListener('click', function() {
+      loadHistory(i);
+    });
     paginationContainer.appendChild(pageBtn);
   }
   
@@ -357,13 +338,15 @@ function displayPagination(metadata) {
   nextBtn.className = 'pagination-btn';
   nextBtn.textContent = 'Siguiente →';
   nextBtn.disabled = page >= total_pages;
-  nextBtn.addEventListener('click', () => loadHistory(page + 1));
+  nextBtn.addEventListener('click', function() {
+    loadHistory(page + 1);
+  });
   paginationContainer.appendChild(nextBtn);
   
   const pageInfo = document.createElement('span');
   pageInfo.style.marginLeft = 'var(--spacing-md)';
   pageInfo.style.color = 'var(--text-secondary)';
-  pageInfo.textContent = `Página ${page} de ${total_pages}`;
+  pageInfo.textContent = 'Página ' + page + ' de ' + total_pages;
   paginationContainer.appendChild(pageInfo);
 }
 
@@ -395,12 +378,16 @@ function viewAnalysisDetails(analysisId) {
   console.log('Ver análisis:', analysisId);
 }
 
-function showToast(message, type = 'info') {
+function showToast(message, type) {
+  if (typeof type === 'undefined') {
+    type = 'info';
+  }
+  
   const container = document.getElementById('toast-container');
   if (!container) return;
   
   const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
+  toast.className = 'toast ' + type;
   
   const icons = {
     success: '✅',
@@ -416,20 +403,20 @@ function showToast(message, type = 'info') {
     info: 'Información'
   };
   
-  toast.innerHTML = `
-    <div class="toast-icon">${icons[type]}</div>
-    <div class="toast-content">
-      <div class="toast-title">${titles[type]}</div>
-      <div class="toast-message">${message}</div>
-    </div>
-    <button class="toast-close" onclick="this.parentElement.remove()">×</button>
-  `;
+  toast.innerHTML = '<div class="toast-icon">' + icons[type] + '</div>' +
+    '<div class="toast-content">' +
+    '<div class="toast-title">' + titles[type] + '</div>' +
+    '<div class="toast-message">' + message + '</div>' +
+    '</div>' +
+    '<button class="toast-close" onclick="this.parentElement.remove()">×</button>';
   
   container.appendChild(toast);
   
-  setTimeout(() => {
+  setTimeout(function() {
     toast.style.opacity = '0';
-    setTimeout(() => toast.remove(), 300);
+    setTimeout(function() {
+      toast.remove();
+    }, 300);
   }, 5000);
 }
 
@@ -451,15 +438,15 @@ async function checkSystemHealth() {
   }
 }
 
-window.addEventListener('error', (event) => {
+window.addEventListener('error', function(event) {
   console.error('Error global capturado:', event.error);
 });
 
-window.addEventListener('unhandledrejection', (event) => {
+window.addEventListener('unhandledrejection', function(event) {
   console.error('Promise rechazada sin manejar:', event.reason);
 });
 
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault();
     clearForm();
@@ -488,8 +475,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 if ('performance' in window) {
-  window.addEventListener('load', () => {
-    setTimeout(() => {
+  window.addEventListener('load', function() {
+    setTimeout(function() {
       const perfData = performance.getEntriesByType('navigation')[0];
       console.log('⚡ Performance:', {
         loadTime: Math.round(perfData.loadEventEnd - perfData.fetchStart) + 'ms',
@@ -500,30 +487,12 @@ if ('performance' in window) {
 }
 
 window.AppFunctions = {
-  navigateToSection,
-  loadHistory,
-  clearForm,
-  checkSystemHealth,
-  viewAnalysisDetails,
-  applyHistoryFilters
+  navigateToSection: navigateToSection,
+  loadHistory: loadHistory,
+  clearForm: clearForm,
+  checkSystemHealth: checkSystemHealth,
+  viewAnalysisDetails: viewAnalysisDetails,
+  applyHistoryFilters: applyHistoryFilters
 };
 
-console.log(`
-╔═══════════════════════════════════════╗
-║   T2B SENTIMENT ANALYSIS SYSTEM      ║
-║   Powered by Gemini AI               ║
-║   Version 1.0.1 - Dashboard Fixed    ║
-╚═══════════════════════════════════════╝
-
-✨ Comandos disponibles:
-   - Ctrl/Cmd + K: Limpiar formulario
-   - Ctrl/Cmd + Enter: Enviar análisis
-   - Alt + 1/2/3: Navegar secciones
-
-📚 API Global: window.sentimentAPI
-📊 Dashboard: window.dashboard
-🛠️ Utilidades: window.SentimentUtils
-💾 Storage: window.storageHelper
-
-🔥 NUEVO: Dashboard se actualiza automáticamente
-`);
+console.log('\n╔═══════════════════════════════════════╗\n║   T2B SENTIMENT ANALYSIS SYSTEM      ║\n║   Powered by Gemini AI               ║\n║   Version 1.2.0 - All Fixed          ║\n╚═══════════════════════════════════════╝\n\n✨ Comandos disponibles:\n   - Ctrl/Cmd + K: Limpiar formulario\n   - Ctrl/Cmd + Enter: Enviar análisis\n   - Alt + 1/2/3: Navegar secciones\n\n📚 API Global: window.sentimentAPI\n📊 Dashboard: window.dashboard\n🛠️ Utilidades: window.SentimentUtils\n💾 Storage: window.storageHelper\n\n🔥 Dashboard con actualización automática\n🎭 23 emociones soportadas\n');
