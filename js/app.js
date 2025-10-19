@@ -168,6 +168,11 @@ async function handleAnalysisSubmit(e) {
         try {
           await window.dashboard.loadStatistics();
           console.log('✅ Dashboard actualizado automáticamente');
+          
+          // 🔥 NUEVO: Forzar actualización inmediata del realtime manager
+          if (window.realtimeManager) {
+            window.realtimeManager.lastUpdateTime = new Date();
+          }
         } catch (error) {
           console.error('❌ Error actualizando dashboard:', error);
         }
