@@ -1,10 +1,9 @@
 {
   "version": 2,
-  "name": "t2b-sentiment-analysis",
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/$1"
+      "src": "**",
+      "use": "@vercel/static"
     }
   ],
   "headers": [
@@ -22,18 +21,8 @@
         {
           "key": "X-XSS-Protection",
           "value": "1; mode=block"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
         }
       ]
     }
-  ],
-  "build": {
-    "env": {
-      "NODE_ENV": "production"
-    }
-  },
-  "regions": ["iad1"]
+  ]
 }
