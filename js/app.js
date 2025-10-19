@@ -27,30 +27,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initializeApp() {
   try {
-    // Configurar API (IMPORTANTE: Configura aquí tus credenciales)
-    // window.sentimentAPI.init('https://tu-proyecto.supabase.co', 'tu-anon-key');
-    
-    // Inicializar navegación
-    initializeNavigation();
-    
-    // Inicializar formulario de análisis
-    initializeAnalysisForm();
-    
-    // Inicializar historial
-    initializeHistory();
-    
-    // Inicializar dashboard
-    await window.dashboard.init();
-    
-    // Verificar health del sistema
-    await checkSystemHealth();
-    
-    console.log('✅ Aplicación inicializada correctamente');
-  } catch (error) {
-    console.error('❌ Error inicializando aplicación:', error);
-    showToast('Error al inicializar la aplicación', 'error');
-  }
-}
+    // Esperar a que los objetos globales estén disponibles
+    if (typeof window.sentimentAPI === 'undefined') {
+      console.error('❌ Error: sentimentAPI no está disponible');
+      showToast('Error: API Client no se cargó correctamente', 'error');
+      return;
+    }
+
+    if (typeof window.SentimentUtils === 'undefined') {
+      console.error('❌ Error: SentimentUtils no está disponible');
+      showToast('Error: Utilities no se cargaron correctamente', 'error');
+      return;
+    }
+
+    if (typeof window.dashboard === 'undefined') {
+      console.error('❌ Error: dashboard no está disponible');
+      showToast('Error: Dashboard no se cargó correctamente', 'error');
+      return;
+    }
+
+    console.log('✅ Todos los módulos cargados correctamente');
 
 // ============================================
 // Navegación entre Secciones
