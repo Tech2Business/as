@@ -3,481 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>T2B Sentiment Analysis | Powered by Gemini AI</title>
+    <title>T2B Sentiment Analysis | Sistema Multicanal</title>
     
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #2563eb;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --error: #ef4444;
-            --bg-dark: #0f172a;
-            --bg-card: #1e293b;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --border: #334155;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-primary);
-            overflow-x: hidden;
-        }
-
-        .header {
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            padding: 1.25rem 2rem;
-        }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-        }
-
-        .logo-subtitle {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            font-weight: 400;
-        }
-
-        .main-grid {
-            display: grid;
-            grid-template-columns: 340px 1fr 400px;
-            gap: 1.5rem;
-            padding: 1.5rem;
-            height: calc(100vh - 85px);
-        }
-
-        /* === COLUMNA 1: FORMULARIO === */
-        .input-column {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 2rem;
-            overflow-y: auto;
-            border: 1px solid var(--border);
-        }
-
-        .column-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            margin-bottom: 1.75rem;
-            color: var(--text-primary);
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-bottom: 0.625rem;
-            color: var(--text-secondary);
-        }
-
-        .form-group select,
-        .form-group input[type="text"],
-        .form-group textarea {
-            width: 100%;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 0.875rem;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .form-group select:focus,
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 240px;
-        }
-
-        .char-counter {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            text-align: right;
-            margin-top: 0.5rem;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 0.875rem;
-            margin-top: 2rem;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 0.875rem;
-            border-radius: 10px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            background: #1d4ed8;
-            transform: translateY(-1px);
-            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
-        }
-
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .btn-secondary {
-            background: transparent;
-            color: var(--text-secondary);
-            border: 1px solid var(--border);
-        }
-
-        .btn-secondary:hover {
-            background: var(--border);
-            color: var(--text-primary);
-        }
-
-        /* === COLUMNA 2: RESULTADOS === */
-        .results-column {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-            overflow-y: auto;
-            padding-right: 0.5rem;
-        }
-
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.25rem;
-        }
-
-        .kpi-card {
-            background: var(--bg-card);
-            border-radius: 14px;
-            padding: 1.5rem;
-            border: 1px solid var(--border);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .kpi-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 28px rgba(0,0,0,0.4);
-            border-color: rgba(37, 99, 235, 0.3);
-        }
-
-        .kpi-label {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-bottom: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            font-weight: 600;
-        }
-
-        .kpi-value {
-            font-size: 2.25rem;
-            font-weight: 700;
-            line-height: 1;
-            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .emotions-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.25rem;
-        }
-
-        .emotions-card {
-            background: var(--bg-card);
-            border-radius: 14px;
-            padding: 1.75rem;
-            border: 1px solid var(--border);
-            transition: all 0.3s ease;
-        }
-
-        .emotions-card h3 {
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 1.25rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .emotion-item {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-            padding: 1rem;
-            background: var(--bg-dark);
-            border-radius: 10px;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            opacity: 0;
-            animation: slideIn 0.5s ease forwards;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .emotion-item:nth-child(1) { animation-delay: 0.1s; }
-        .emotion-item:nth-child(2) { animation-delay: 0.2s; }
-        .emotion-item:nth-child(3) { animation-delay: 0.3s; }
-
-        .emotion-item:hover {
-            background: rgba(37, 99, 235, 0.05);
-            transform: translateX(4px);
-        }
-
-        .emotion-emoji {
-            font-size: 1.75rem;
-            line-height: 1;
-        }
-
-        .emotion-info {
-            flex: 1;
-        }
-
-        .emotion-name {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.875rem;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        }
-
-        .emotion-value {
-            font-weight: 700;
-            color: var(--primary);
-        }
-
-        .emotion-bar {
-            height: 5px;
-            background: rgba(51, 65, 85, 0.5);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .emotion-bar-fill {
-            height: 100%;
-            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 3px;
-        }
-
-        /* === COLUMNA 3: GRÁFICA === */
-        .chart-column {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 2rem;
-            border: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chart-container {
-            flex: 1;
-            position: relative;
-            min-height: 400px;
-        }
-
-        /* === ANIMACIONES SUAVES TIPO POWER BI === */
-        .smooth-transition {
-            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @keyframes powerBiFadeIn {
-            from {
-                opacity: 0;
-                transform: scale(0.97) translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1) translateY(0);
-            }
-        }
-
-        .powerbi-animate {
-            animation: powerBiFadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* === SCROLLBARS === */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--text-secondary);
-        }
-
-        #results-container {
-            display: none;
-        }
-
-        #results-container.active {
-            display: contents;
-        }
-
-        .empty-state {
-            grid-column: 1 / -1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 4rem 2rem;
-            color: var(--text-secondary);
-            text-align: center;
-        }
-
-        .empty-state-icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
-
-        .empty-state-text {
-            font-size: 1.125rem;
-            font-weight: 500;
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 0.6s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
+    <!-- Estilos -->
+    <link rel="stylesheet" href="css/brand-colors.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/channels.css">
 </head>
 <body>
     <!-- Header -->
     <header class="header">
         <div class="logo">
             🎯 T2B Sentiment Analysis
-            <div class="logo-subtitle">Powered by Gemini AI</div>
+            <div class="logo-subtitle">Sistema Multicanal - Powered by Gemini AI</div>
         </div>
     </header>
 
     <!-- Main Grid: 3 Columnas -->
     <div class="main-grid">
-        <!-- === COLUMNA 1: ENTRADA DE DATOS === -->
+        <!-- === COLUMNA 1: CONFIGURACIÓN DE CANAL === -->
         <div class="input-column">
-            <h2 class="column-title">📊 Datos de Entrada</h2>
+            <h2 class="column-title">📊 Configuración de Canal</h2>
             
-            <form id="analysis-form">
-                <div class="form-group">
-                    <label for="social-network">Canal</label>
-                    <select id="social-network" required>
-                        <option value="">Seleccionar canal...</option>
-                        <option value="email">📧 Email</option>
-                        <option value="whatsapp">💬 WhatsApp</option>
-                        <option value="twitter">🐦 Twitter</option>
-                        <option value="facebook">👥 Facebook</option>
-                        <option value="instagram">📸 Instagram</option>
-                        <option value="linkedin">💼 LinkedIn</option>
-                        <option value="telegram">✈️ Telegram</option>
-                        <option value="sms">📱 SMS</option>
-                    </select>
-                </div>
+            <div class="form-group">
+                <label for="channel-select">Seleccionar Canal</label>
+                <select id="channel-select" required>
+                    <option value="">Seleccionar canal...</option>
+                    <option value="email">📧 Correo Electrónico</option>
+                    <option value="whatsapp">💬 WhatsApp Business</option>
+                    <option value="x">𝕏 X (Twitter)</option>
+                    <option value="facebook">👥 Facebook</option>
+                    <option value="instagram">📸 Instagram</option>
+                    <option value="linkedin">💼 LinkedIn</option>
+                </select>
+            </div>
 
-                <div class="form-group">
-                    <label for="keywords">Palabras Clave</label>
-                    <input 
-                        type="text" 
-                        id="keywords" 
-                        placeholder="urgente, satisfecho, problema..."
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="content">Contenido a Analizar</label>
-                    <textarea 
-                        id="content" 
-                        required
-                        maxlength="10000"
-                        placeholder="Escribe o pega el texto aquí..."
-                    ></textarea>
-                    <div class="char-counter">
-                        <span id="char-count">0</span> / 10,000
-                    </div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" id="clear-btn">
-                        Limpiar
-                    </button>
-                    <button type="submit" class="btn btn-primary" id="analyze-btn">
-                        <span id="btn-text">Analizar</span>
-                    </button>
-                </div>
-            </form>
+            <!-- Contenedor dinámico según el canal -->
+            <div id="channel-config-container"></div>
         </div>
 
         <!-- === COLUMNA 2: RESULTADOS === -->
         <div class="results-column">
             <div id="empty-state" class="empty-state">
                 <div class="empty-state-icon">📊</div>
-                <div class="empty-state-text">Selecciona un canal e ingresa texto para comenzar el análisis</div>
+                <div class="empty-state-text">Selecciona un canal y configura el monitoreo para comenzar el análisis en tiempo real</div>
             </div>
 
             <div id="results-container">
                 <!-- KPIs de Polaridad -->
-                <div class="kpi-grid powerbi-animate">
+                <div class="kpi-grid">
                     <div class="kpi-card">
                         <div class="kpi-label">Positivo</div>
                         <div class="kpi-value" style="color: #10b981;" id="kpi-positive">0</div>
@@ -497,7 +79,7 @@
                 </div>
 
                 <!-- Emociones -->
-                <div class="emotions-container powerbi-animate">
+                <div class="emotions-container">
                     <div class="emotions-card">
                         <h3>😊 Emociones Primarias</h3>
                         <div id="primary-emotions"></div>
@@ -513,15 +95,146 @@
 
         <!-- === COLUMNA 3: GRÁFICA === -->
         <div class="chart-column">
-            <h3 class="column-title">📈 Análisis por Canal</h3>
+            <h3 class="column-title">
+                <span class="status-indicator"></span>
+                📈 Análisis en Tiempo Real
+            </h3>
             <div class="chart-container">
                 <canvas id="networks-chart"></canvas>
             </div>
         </div>
     </div>
 
+    <!-- === MODALES === -->
+    
+    <!-- Modal para Email -->
+    <div id="email-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="email-modal-title">Agregar Correo Electrónico</h3>
+                <button class="modal-close" onclick="window.channelManager.closeEmailModal()">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="email-name">Nombre del Personal</label>
+                <input type="text" id="email-name" placeholder="Ej: Juan Pérez" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email-address">Correo Electrónico</label>
+                <input type="email" id="email-address" placeholder="ejemplo@empresa.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email-department">Departamento/Unidad</label>
+                <input type="text" id="email-department" placeholder="Ej: Ventas, Soporte" required>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="window.channelManager.closeEmailModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="window.channelManager.saveEmail()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para WhatsApp -->
+    <div id="whatsapp-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="whatsapp-modal-title">Agregar WhatsApp Business</h3>
+                <button class="modal-close" onclick="window.channelManager.closeWhatsAppModal()">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="whatsapp-name">Nombre del Personal</label>
+                <input type="text" id="whatsapp-name" placeholder="Ej: Juan Pérez" required>
+            </div>
+
+            <div class="form-group">
+                <label for="whatsapp-phone">Número de Teléfono</label>
+                <div class="phone-input-group">
+                    <input type="text" id="whatsapp-code" placeholder="+504" maxlength="5" required>
+                    <input type="tel" id="whatsapp-number" placeholder="98765432" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="whatsapp-department">Departamento/Unidad</label>
+                <input type="text" id="whatsapp-department" placeholder="Ej: Ventas, Soporte" required>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="window.channelManager.closeWhatsAppModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="window.channelManager.saveWhatsApp()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Redes Sociales -->
+    <div id="social-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="social-modal-title">Configurar Red Social</h3>
+                <button class="modal-close" onclick="window.channelManager.closeSocialModal()">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="social-search-terms">Términos de Búsqueda / Hashtags</label>
+                <input type="text" id="social-search-terms" placeholder="#tech2business, @empresa" required>
+            </div>
+
+            <div class="form-group">
+                <label for="social-keywords">Palabras Clave</label>
+                <input type="text" id="social-keywords" placeholder="producto, servicio, soporte">
+            </div>
+
+            <div class="form-group">
+                <label>Rango de Tiempo</label>
+                <div class="date-range-group">
+                    <input type="date" id="social-date-from" required>
+                    <input type="date" id="social-date-to" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="social-limit">Límite de Publicaciones</label>
+                <input type="number" id="social-limit" placeholder="Dejar vacío para ilimitado" min="1">
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="window.channelManager.closeSocialModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="window.channelManager.saveSocialConfig()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Eliminar -->
+    <div id="delete-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">⚠️ Confirmar Eliminación</h3>
+                <button class="modal-close" onclick="window.channelManager.closeDeleteModal()">×</button>
+            </div>
+            
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                ¿Estás seguro de que deseas eliminar este elemento? Esta acción no se puede deshacer.
+            </p>
+
+            <div class="form-group">
+                <label for="delete-reason">Motivo de la eliminación</label>
+                <textarea id="delete-reason" rows="3" placeholder="Describe el motivo..." required></textarea>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="window.channelManager.closeDeleteModal()">Cancelar</button>
+                <button class="btn btn-danger" onclick="window.channelManager.confirmDelete()">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="js/api-client.js"></script>
+    <script src="js/channel-manager.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/realtime.js"></script>
     <script src="js/app.js"></script>
