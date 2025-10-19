@@ -1,7 +1,7 @@
 // ============================================
-// T2B Tech2Business - Channel Manager
-// Gestión de Canales Multimodal con Supabase
-// Version 3.1.0 - Con Colores Corporativos T2B
+// T2B Tech2Business - Channel Manager v3.2
+// Gestión de Canales Multimodal - CORREGIDO
+// Fix: Refresco después de eliminar
 // ============================================
 
 class ChannelManager {
@@ -16,10 +16,10 @@ class ChannelManager {
       linkedin: []
     };
     this.editingIndex = -1;
-    this.editingConfigId = null; // ID de Supabase para edición
+    this.editingConfigId = null;
     this.deleteItemIndex = -1;
     this.deleteItemChannel = '';
-    this.deleteConfigId = null; // ID de Supabase para eliminación
+    this.deleteConfigId = null;
     
     // Cargar datos desde Supabase al iniciar
     this.loadFromDatabase();
@@ -34,7 +34,7 @@ class ChannelManager {
         this.currentChannel = e.target.value;
         this.renderChannelConfig();
         
-        // NUEVO: Notificar al dashboard sobre el cambio de canal
+        // Notificar al dashboard sobre el cambio de canal
         if (window.dashboard && typeof window.dashboard.setSelectedChannel === 'function') {
           window.dashboard.setSelectedChannel(this.currentChannel);
         }
@@ -46,7 +46,6 @@ class ChannelManager {
   
   async loadFromDatabase() {
     try {
-      // Verificar si hay API disponible
       if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
         console.log('⚠️ Modo demo: usando datos locales');
         this.loadFromStorage();
@@ -56,7 +55,6 @@ class ChannelManager {
       const supabaseUrl = window.sentimentAPI.SUPABASE_URL;
       const supabaseKey = window.sentimentAPI.SUPABASE_ANON_KEY;
       
-      // Petición GET a channel_configs
       const response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?select=*&order=created_at.desc`, {
         method: 'GET',
         headers: {
@@ -72,7 +70,6 @@ class ChannelManager {
 
       const configs = await response.json();
       
-      // Organizar configuraciones por canal
       this.monitoredItems = {
         email: [],
         whatsapp: [],
@@ -209,7 +206,7 @@ class ChannelManager {
       return;
     }
 
-    // NUEVO: Si se selecciona "Todos los Canales"
+    // Si se selecciona "Todos los Canales"
     if (this.currentChannel === 'all') {
       const activeChannels = this.getActiveChannels();
       const totalItems = activeChannels.reduce((sum, channel) => {
@@ -274,7 +271,7 @@ class ChannelManager {
     if (items.length === 0) {
       listContainer.innerHTML = `
         <div style="text-align: center; padding: 2rem; color: #6d9abc; background: #f8fbff; border-radius: 10px; border: 1px solid #d0d3d6;">
-          <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;">📭</div>
+          <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;">🔭</div>
           <p style="font-size: 0.875rem;">No hay elementos configurados</p>
         </div>
       `;
@@ -351,7 +348,7 @@ class ChannelManager {
   editItem(index) {
     this.editingIndex = index;
     const item = this.monitoredItems[this.currentChannel][index];
-    this.editingConfigId = item.id; // Guardar ID de Supabase
+    this.editingConfigId = item.id;
 
     if (this.currentChannel === 'email') {
       document.getElementById('email-modal-title').textContent = 'Editar Correo Electrónico';
@@ -405,14 +402,12 @@ class ChannelManager {
       created_at: new Date().toISOString()
     };
 
-    // Guardar en Supabase
     const savedConfig = await this.saveToDatabase('email', emailData, this.editingConfigId);
 
     if (savedConfig) {
       emailData.id = savedConfig.id;
     }
 
-    // Actualizar array local
     if (this.editingIndex >= 0) {
       this.monitoredItems.email[this.editingIndex] = emailData;
     } else {
@@ -421,7 +416,7 @@ class ChannelManager {
 
     this.closeEmailModal();
     this.renderMonitoredList();
-    this.saveToStorage(); // Backup en localStorage
+    this.saveToStorage();
     this.triggerDataUpdate();
   }
 
@@ -443,14 +438,12 @@ class ChannelManager {
       created_at: new Date().toISOString()
     };
 
-    // Guardar en Supabase
     const savedConfig = await this.saveToDatabase('whatsapp', whatsappData, this.editingConfigId);
 
     if (savedConfig) {
       whatsappData.id = savedConfig.id;
     }
 
-    // Actualizar array local
     if (this.editingIndex >= 0) {
       this.monitoredItems.whatsapp[this.editingIndex] = whatsappData;
     } else {
@@ -459,7 +452,7 @@ class ChannelManager {
 
     this.closeWhatsAppModal();
     this.renderMonitoredList();
-    this.saveToStorage(); // Backup en localStorage
+    this.saveToStorage();
     this.triggerDataUpdate();
   }
 
@@ -533,7 +526,6 @@ class ChannelManager {
       created_at: new Date().toISOString()
     };
 
-    // Guardar en Supabase
     const savedConfig = await this.saveToDatabase(this.currentChannel, socialData, this.editingConfigId);
 
     if (savedConfig) {
@@ -543,7 +535,7 @@ class ChannelManager {
     this.monitoredItems[this.currentChannel] = [socialData];
     this.closeSocialModal();
     this.renderSocialConfig();
-    this.saveToStorage(); // Backup en localStorage
+    this.saveToStorage();
     this.triggerDataUpdate();
   }
 
@@ -553,7 +545,6 @@ class ChannelManager {
     this.deleteItemIndex = index;
     this.deleteItemChannel = this.currentChannel;
     
-    // Guardar el ID de Supabase para eliminar
     const item = this.monitoredItems[this.deleteItemChannel][index];
     this.deleteConfigId = item ? item.id : null;
     
@@ -583,8 +574,11 @@ class ChannelManager {
 
     // Eliminar del array local
     this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
+    
+    // CORRECCIÓN: Cerrar modal primero
     this.closeDeleteModal();
 
+    // CORRECCIÓN: Refrescar la vista según el tipo de canal
     if (this.deleteItemChannel === 'email' || this.deleteItemChannel === 'whatsapp') {
       this.renderMonitoredList();
     } else {
@@ -593,6 +587,11 @@ class ChannelManager {
 
     this.saveToStorage();
     this.triggerDataUpdate();
+    
+    // CORRECCIÓN: Mostrar notificación de éxito
+    if (window.showNotification) {
+      window.showNotification('Elemento eliminado correctamente', 'success');
+    }
   }
 
   // ==================== ALMACENAMIENTO LOCAL (FALLBACK) ====================
@@ -634,32 +633,26 @@ class ChannelManager {
   }
 
   triggerDataUpdate() {
-    // Notificar al dashboard
     if (window.dashboard && typeof window.dashboard.updateWithChannelData === 'function') {
       window.dashboard.updateWithChannelData(this.monitoredItems);
     }
     
-    // Simular datos para demostración
     this.simulateChannelData();
   }
 
   simulateChannelData() {
-    // Verificar si hay canales configurados O si se seleccionó "Todos"
     const hasItems = Object.values(this.monitoredItems).some(items => items.length > 0);
     const isAllChannels = this.currentChannel === 'all';
 
-    // Si no hay items y no es "todos", mostrar empty state
     if (!hasItems && !isAllChannels) {
       document.getElementById('empty-state').style.display = 'flex';
       document.getElementById('results-container').classList.remove('active');
       return;
     }
 
-    // Mostrar resultados
     document.getElementById('empty-state').style.display = 'none';
     document.getElementById('results-container').classList.add('active');
 
-    // Generar datos simulados
     const sentimentData = {
       positive: Math.floor(Math.random() * 40) + 40,
       neutral: Math.floor(Math.random() * 20) + 20,
@@ -668,18 +661,14 @@ class ChannelManager {
     
     sentimentData.score = sentimentData.positive - sentimentData.negative;
 
-    // Actualizar KPIs
     if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
       window.dashboard.updateKPIs(sentimentData);
     }
     
-    // Actualizar gráfica según canal seleccionado
     const activeChannels = this.getActiveChannels();
     
-    // Si hay canales o se seleccionó "all", actualizar gráfica
     if ((activeChannels.length > 0 || isAllChannels) && window.dashboard) {
       if (typeof window.dashboard.updateNetworksChartByChannels === 'function') {
-        // Si es "all", pasar todos los canales posibles
         const channelsToShow = isAllChannels ? 
           ['email', 'whatsapp', 'x', 'facebook', 'instagram', 'linkedin'] : 
           activeChannels;
@@ -718,4 +707,4 @@ if (document.readyState === 'loading') {
   window.channelManager.init();
 }
 
-console.log('✅ Channel Manager v3.1.0 cargado (Supabase + T2B)');
+console.log('✅ Channel Manager v3.2 cargado - CORREGIDO');

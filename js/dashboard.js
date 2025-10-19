@@ -1,7 +1,7 @@
 // ============================================
-// T2B Tech2Business - Dashboard v3.1
+// T2B Tech2Business - Dashboard v3.2
 // Dashboard con Colores Corporativos T2B
-// Gráfica selectiva por canal
+// Gráfica selectiva por canal - CORREGIDO
 // ============================================
 
 class Dashboard {
@@ -69,15 +69,15 @@ class Dashboard {
         plugins: {
           legend: {
             labels: {
-              color: '#f8fbff',  // T2B White
+              color: '#f8fbff',
               font: { size: 12, family: 'Gotham, Inter' }
             }
           },
           tooltip: {
-            backgroundColor: '#f8fbff',  // T2B White
-            titleColor: '#111544',        // T2B Navy
-            bodyColor: '#6d9abc',         // T2B Blue
-            borderColor: '#d0d3d6',       // T2B Gray
+            backgroundColor: '#f8fbff',
+            titleColor: '#111544',
+            bodyColor: '#6d9abc',
+            borderColor: '#d0d3d6',
             borderWidth: 1,
             padding: 12,
             displayColors: true
@@ -87,11 +87,11 @@ class Dashboard {
           x: {
             stacked: true,
             grid: { 
-              color: 'rgba(208, 211, 214, 0.2)',  // T2B Gray transparent
+              color: 'rgba(208, 211, 214, 0.2)',
               drawBorder: false
             },
             ticks: { 
-              color: '#f8fbff',  // T2B White
+              color: '#f8fbff',
               font: { size: 11, family: 'Gotham, Inter' }
             }
           },
@@ -99,11 +99,11 @@ class Dashboard {
             stacked: true,
             beginAtZero: true,
             grid: { 
-              color: 'rgba(208, 211, 214, 0.2)',  // T2B Gray transparent
+              color: 'rgba(208, 211, 214, 0.2)',
               drawBorder: false
             },
             ticks: { 
-              color: '#f8fbff',  // T2B White
+              color: '#f8fbff',
               font: { size: 11, family: 'Gotham, Inter' }
             }
           }
@@ -164,72 +164,69 @@ class Dashboard {
     const neutralData = channels.map(() => Math.floor(Math.random() * 20) + 20);
     const negativeData = channels.map(() => Math.floor(Math.random() * 20) + 10);
 
-    // Función para determinar colores según selección
-    const getColors = (baseColor, index) => {
-      const channelName = channels[index];
-      
-      // Si se selecciona "Todos los canales" o no hay selección
-      if (!selectedChannel || selectedChannel === 'all') {
+    // CORRECCIÓN: Función para determinar colores según selección
+    const getDatasetColors = (baseColor) => {
+      return channels.map((channelName, index) => {
+        // Si se selecciona "Todos los canales" o no hay selección
+        if (!selectedChannel || selectedChannel === 'all') {
+          return {
+            backgroundColor: baseColor,
+            borderColor: baseColor
+          };
+        }
+        
+        // Si el canal actual es el seleccionado (mostrar con color real)
+        if (channelName === selectedChannel) {
+          return {
+            backgroundColor: baseColor,
+            borderColor: baseColor
+          };
+        }
+        
+        // Si el canal NO es el seleccionado (mostrar transparente con borde)
         return {
-          backgroundColor: baseColor,
-          borderColor: baseColor
+          backgroundColor: 'transparent',
+          borderColor: '#6d9abc'  // T2B Blue para borde
         };
-      }
-      
-      // Si el canal actual es el seleccionado
-      if (channelName === selectedChannel) {
-        return {
-          backgroundColor: baseColor,
-          borderColor: baseColor
-        };
-      }
-      
-      // Si el canal NO es el seleccionado (transparente con borde)
-      return {
-        backgroundColor: 'transparent',
-        borderColor: '#d0d3d6'  // T2B Gray para contorno
-      };
+      });
     };
 
-    // Colores para positivo, neutral, negativo
+    // Colores base para cada sentimiento
     const positiveColor = '#10b981';
     const neutralColor = '#f59e0b';
     const negativeColor = '#ef4444';
 
-    // Aplicar colores dinámicamente
+    // CORRECCIÓN: Aplicar colores a todos los datasets
     this.chart.data.labels = labels;
     
     // Dataset Positivo
+    const positiveColors = getDatasetColors(positiveColor);
     this.chart.data.datasets[0].data = positiveData;
-    this.chart.data.datasets[0].backgroundColor = channels.map((_, i) => 
-      getColors(positiveColor, i).backgroundColor
-    );
-    this.chart.data.datasets[0].borderColor = channels.map((_, i) => 
-      getColors(positiveColor, i).borderColor
-    );
+    this.chart.data.datasets[0].backgroundColor = positiveColors.map(c => c.backgroundColor);
+    this.chart.data.datasets[0].borderColor = positiveColors.map(c => c.borderColor);
     
     // Dataset Neutral
+    const neutralColors = getDatasetColors(neutralColor);
     this.chart.data.datasets[1].data = neutralData;
-    this.chart.data.datasets[1].backgroundColor = channels.map((_, i) => 
-      getColors(neutralColor, i).backgroundColor
-    );
-    this.chart.data.datasets[1].borderColor = channels.map((_, i) => 
-      getColors(neutralColor, i).borderColor
-    );
+    this.chart.data.datasets[1].backgroundColor = neutralColors.map(c => c.backgroundColor);
+    this.chart.data.datasets[1].borderColor = neutralColors.map(c => c.borderColor);
     
     // Dataset Negativo
+    const negativeColors = getDatasetColors(negativeColor);
     this.chart.data.datasets[2].data = negativeData;
-    this.chart.data.datasets[2].backgroundColor = channels.map((_, i) => 
-      getColors(negativeColor, i).backgroundColor
-    );
-    this.chart.data.datasets[2].borderColor = channels.map((_, i) => 
-      getColors(negativeColor, i).borderColor
-    );
+    this.chart.data.datasets[2].backgroundColor = negativeColors.map(c => c.backgroundColor);
+    this.chart.data.datasets[2].borderColor = negativeColors.map(c => c.borderColor);
 
-    this.chart.update({
-      duration: 800,
-      easing: 'easeInOutQuart'
-    });
+    // CORRECCIÓN: Actualizar sin animación repetida
+    this.chart.update('none');
+    
+    // Aplicar animación suave después
+    setTimeout(() => {
+      this.chart.update({
+        duration: 600,
+        easing: 'easeInOutQuart'
+      });
+    }, 50);
   }
 
   updateKPIs(sentimentData) {
@@ -345,7 +342,7 @@ class Dashboard {
       feliz: '😊', triste: '😢', enojado: '😠', neutral: '😐',
       asustado: '😨', sorprendido: '😲', disgustado: '🤢', ansioso: '😰',
       optimista: '😄', pesimista: '😔', confiado: '😌', confundido: '😕',
-      impaciente: '😤', agradecido: '🙏', orgulloso: '😏', frustrado: '😣',
+      impaciente: '😤', agradecido: '🙏', orgulloso: '😎', frustrado: '😣',
       satisfecho: '😌', decepcionado: '😞', esperanzado: '🤞', cinico: '🙄',
       sarcastico: '😏', arrogante: '😤', humilde: '🙇', despreciativo: '😒'
     };
@@ -368,11 +365,17 @@ class Dashboard {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
-  // Método para actualizar la gráfica según el canal seleccionado
+  // CORRECCIÓN: Método para mantener canal seleccionado
   setSelectedChannel(channel) {
     this.selectedChannel = channel;
     const activeChannels = window.channelManager ? window.channelManager.getActiveChannels() : [];
-    if (activeChannels.length > 0) {
+    
+    // Si es "all", mostrar todos los canales disponibles
+    if (channel === 'all') {
+      const allChannels = ['email', 'whatsapp', 'x', 'facebook', 'instagram', 'linkedin'];
+      this.updateNetworksChartByChannels(allChannels, channel);
+    } else if (activeChannels.length > 0) {
+      // Mostrar todos los canales pero resaltar solo el seleccionado
       this.updateNetworksChartByChannels(activeChannels, channel);
     }
   }
@@ -481,4 +484,4 @@ window.dashboard = new Dashboard();
 window.displayAnalysisResults = displayAnalysisResults;
 window.clearAnalysisResults = clearAnalysisResults;
 
-console.log('✅ Dashboard v3.1 T2B inicializado con colores corporativos');
+console.log('✅ Dashboard v3.2 T2B inicializado - CORREGIDO');
