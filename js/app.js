@@ -226,7 +226,10 @@ function initializeHistory() {
   }
 }
 
-async function loadHistory(page = 1) {
+async function loadHistory(page) {
+  if (typeof page === 'undefined') {
+    page = 1;
+  }
   try {
     const tbody = document.getElementById('history-tbody');
     if (!tbody) return;
