@@ -320,7 +320,7 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-console.log('\n✅ T2B Sentiment Analysis v3.2 - CORREGIDO');
+console.log('\n✅ T2B Sentiment Analysis v3.2 - CORREGIDO ----');
 console.log('📊 Sistema Multicanal Activo');
 console.log('🎨 Animaciones suaves tipo Power BI');
 console.log('⚡ Actualización en tiempo real');
