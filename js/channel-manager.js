@@ -1,6 +1,7 @@
 // ============================================
-// T2B Tech2Business - Channel Manager v3.7 CRÍTICO
-// CORRECCIÓN: Base de Datos es PRIORITARIA, NO localStorage
+// T2B Tech2Business - Channel Manager v4.0
+// NUEVO: Flujo Evaluado (Entrada/Salida/Ambas)
+// CORREGIDO: Persistencia DB prioritaria
 // ============================================
 
 class ChannelManager {
@@ -14,6 +15,13 @@ class ChannelManager {
       instagram: [],
       linkedin: []
     };
+    
+    // NUEVO: Flujo evaluado para Email y WhatsApp
+    this.flowDirection = {
+      email: 'both',     // 'in', 'out', 'both'
+      whatsapp: 'both'
+    };
+    
     this.editingIndex = -1;
     this.editingConfigId = null;
     this.deleteItemIndex = -1;
@@ -25,13 +33,12 @@ class ChannelManager {
   }
 
   async init() {
-    console.log('✅ Channel Manager T2B v3.7 iniciando...');
+    console.log('✅ Channel Manager T2B v4.0 iniciando...');
     
-    // CORRECCIÓN CRÍTICA: Primero intentar cargar desde BASE DE DATOS
+    // Base de datos es PRIORITARIA
     const dbLoaded = await this.loadFromDatabase();
     
     if (!dbLoaded) {
-      // Solo si la DB falla, usar localStorage como fallback
       console.log('⚠️ Base de datos no disponible, usando cache local');
       this.loadFromStorage();
     } else {
@@ -293,8 +300,6 @@ class ChannelManager {
 
     sentimentData.score = sentimentData.positive - sentimentData.negative;
 
-    console.log('📊 Sentimientos calculados:', sentimentData);
-
     this.realDataCache[channel] = {
       sentimentData,
       emotions: this.extractEmotions(data),
@@ -519,21 +524,14 @@ class ChannelManager {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
-  // ============================================
-  // CORRECCIÓN CRÍTICA: PRIORIDAD BASE DE DATOS
-  // ============================================
-
   async loadFromDatabase() {
     try {
       if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
-        console.log('⚠️ No hay configuración de Supabase');
         return false;
       }
 
       const supabaseUrl = window.sentimentAPI.SUPABASE_URL;
       const supabaseKey = window.sentimentAPI.SUPABASE_ANON_KEY;
-      
-      console.log('🔄 Conectando a Supabase...');
       
       const response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?select=*&order=created_at.desc`, {
         method: 'GET',
@@ -545,20 +543,15 @@ class ChannelManager {
       });
 
       if (response.status === 401) {
-        console.log('❌ Error 401: Credenciales inválidas');
         return false;
       }
 
       if (!response.ok) {
-        console.log(`❌ Error HTTP ${response.status}`);
         return false;
       }
 
       const configs = await response.json();
       
-      console.log(`✅ ${configs.length} configuraciones encontradas en DB`);
-      
-      // LIMPIAR y recargar desde DB
       this.monitoredItems = {
         email: [],
         whatsapp: [],
@@ -584,14 +577,10 @@ class ChannelManager {
         }
       });
 
-      // Actualizar cache local DESPUÉS de cargar de DB
       this.saveToStorage();
-      
-      console.log('✅ Datos sincronizados desde DB');
       return true;
       
     } catch (error) {
-      console.error('❌ Error conectando con DB:', error.message);
       return false;
     }
   }
@@ -599,7 +588,6 @@ class ChannelManager {
   async saveToDatabase(channelType, configData, configId = null) {
     try {
       if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
-        console.log('⚠️ DB no disponible, guardando solo en cache local');
         this.saveToStorage();
         return null;
       }
@@ -614,13 +602,10 @@ class ChannelManager {
         is_active: true
       };
 
-      console.log('💾 Guardando en base de datos...');
-
       let response;
       let savedConfig;
 
       if (configId) {
-        // UPDATE
         response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?id=eq.${configId}`, {
           method: 'PATCH',
           headers: {
@@ -632,16 +617,12 @@ class ChannelManager {
           body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const updated = await response.json();
         savedConfig = updated[0];
-        console.log('✅ Actualizado en DB');
 
       } else {
-        // INSERT
         response = await fetch(`${supabaseUrl}/rest/v1/channel_configs`, {
           method: 'POST',
           headers: {
@@ -653,33 +634,23 @@ class ChannelManager {
           body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const created = await response.json();
         savedConfig = created[0];
-        console.log('✅ Guardado en DB con ID:', savedConfig.id);
       }
 
-      // IMPORTANTE: Actualizar cache local DESPUÉS de guardar en DB
       this.saveToStorage();
-
       return savedConfig;
 
     } catch (error) {
-      console.error('❌ Error guardando en DB:', error.message);
-      
-      // Mostrar notificación al usuario
       if (window.showNotification) {
         window.showNotification(
-          'No se pudo guardar en la base de datos. Verifica tu conexión.',
+          'No se pudo guardar en la base de datos',
           'error'
         );
       }
       
-      // Guardar solo en cache local como fallback
       this.saveToStorage();
       return null;
     }
@@ -688,20 +659,15 @@ class ChannelManager {
   async deleteFromDatabase(configId) {
     try {
       if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
-        console.log('⚠️ DB no disponible');
         return false;
       }
 
-      // NO eliminar si es ID local
       if (configId && configId.toString().startsWith('local_')) {
-        console.log('ℹ️ ID local, solo se elimina del cache');
         return false;
       }
 
       const supabaseUrl = window.sentimentAPI.SUPABASE_URL;
       const supabaseKey = window.sentimentAPI.SUPABASE_ANON_KEY;
-
-      console.log('🗑️ Eliminando de base de datos...');
 
       const response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?id=eq.${configId}`, {
         method: 'DELETE',
@@ -712,23 +678,11 @@ class ChannelManager {
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
-      console.log('✅ Eliminado de DB');
       return true;
 
     } catch (error) {
-      console.error('❌ Error eliminando de DB:', error.message);
-      
-      if (window.showNotification) {
-        window.showNotification(
-          'No se pudo eliminar de la base de datos. Verifica tu conexión.',
-          'error'
-        );
-      }
-      
       return false;
     }
   }
@@ -740,7 +694,6 @@ class ChannelManager {
     
     if (!this.currentChannel) {
       container.innerHTML = '';
-      this.stopMonitoring();
       return;
     }
 
@@ -765,12 +718,11 @@ class ChannelManager {
               <strong>${totalItems}</strong> elementos
             </div>
             <div style="background: ${this.dbConnected ? '#10b981' : '#f59e0b'}; color: #f8fbff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem;">
-              ${this.dbConnected ? '🔗 DB Conectada' : '💾 Modo Local'}
+              ${this.dbConnected ? '🔗 DB' : '💾 Local'}
             </div>
           </div>
         </div>
       `;
-      this.startMonitoring();
       return;
     }
 
@@ -782,10 +734,30 @@ class ChannelManager {
             <span>➕</span>
             <span>Agregar ${this.currentChannel === 'email' ? 'Correo' : 'Número'}</span>
           </button>
+          
+          <!-- NUEVO: Flujo Evaluado -->
+          <div style="margin-top: 1.5rem; padding: 1rem; background: #f8fbff; border-radius: 10px; border: 1px solid #d0d3d6;">
+            <h4 style="font-size: 0.875rem; font-weight: 600; color: #111544; margin-bottom: 0.75rem;">Flujo evaluado:</h4>
+            <div style="display: flex; gap: 1rem;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="radio" name="flow-${this.currentChannel}" value="in" ${this.flowDirection[this.currentChannel] === 'in' ? 'checked' : ''} onchange="window.channelManager.setFlowDirection('${this.currentChannel}', 'in')">
+                <span style="font-size: 0.875rem; color: #111544;">Entrada</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="radio" name="flow-${this.currentChannel}" value="out" ${this.flowDirection[this.currentChannel] === 'out' ? 'checked' : ''} onchange="window.channelManager.setFlowDirection('${this.currentChannel}', 'out')">
+                <span style="font-size: 0.875rem; color: #111544;">Salida</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="radio" name="flow-${this.currentChannel}" value="both" ${this.flowDirection[this.currentChannel] === 'both' ? 'checked' : ''} onchange="window.channelManager.setFlowDirection('${this.currentChannel}', 'both')">
+                <span style="font-size: 0.875rem; color: #111544;">Ambas vías</span>
+              </label>
+            </div>
+          </div>
         </div>
       `;
       this.renderMonitoredList();
     } else {
+      // Redes sociales
       container.innerHTML = `
         <button class="add-btn" onclick="window.channelManager.openSocialModal()">
           <span>⚙️</span>
@@ -795,8 +767,15 @@ class ChannelManager {
       `;
       this.renderSocialConfig();
     }
+  }
 
-    this.startMonitoring();
+  // NUEVO: Establecer dirección del flujo
+  setFlowDirection(channel, direction) {
+    this.flowDirection[channel] = direction;
+    console.log(`🔄 Flujo de ${channel} cambiado a: ${direction}`);
+    
+    // Recargar emociones según el flujo
+    this.loadRealDataForChannel(channel);
   }
 
   renderMonitoredList() {
@@ -949,16 +928,12 @@ class ChannelManager {
       created_at: new Date().toISOString()
     };
 
-    // CRÍTICO: Intentar guardar en DB primero
     const savedConfig = await this.saveToDatabase('email', emailData, this.editingConfigId);
 
     if (savedConfig && savedConfig.id) {
       emailData.id = savedConfig.id;
-      console.log('✅ Email guardado en DB con ID:', savedConfig.id);
     } else {
-      // Solo si falla DB, usar ID local
       emailData.id = 'local_' + Date.now();
-      console.log('⚠️ Email guardado solo en cache local');
     }
 
     if (this.editingIndex >= 0) {
@@ -991,15 +966,12 @@ class ChannelManager {
       created_at: new Date().toISOString()
     };
 
-    // CRÍTICO: Intentar guardar en DB primero
     const savedConfig = await this.saveToDatabase('whatsapp', whatsappData, this.editingConfigId);
 
     if (savedConfig && savedConfig.id) {
       whatsappData.id = savedConfig.id;
-      console.log('✅ WhatsApp guardado en DB con ID:', savedConfig.id);
     } else {
       whatsappData.id = 'local_' + Date.now();
-      console.log('⚠️ WhatsApp guardado solo en cache local');
     }
 
     if (this.editingIndex >= 0) {
@@ -1082,15 +1054,12 @@ class ChannelManager {
       created_at: new Date().toISOString()
     };
 
-    // CRÍTICO: Intentar guardar en DB primero
     const savedConfig = await this.saveToDatabase(this.currentChannel, socialData, this.editingConfigId);
 
     if (savedConfig && savedConfig.id) {
       socialData.id = savedConfig.id;
-      console.log('✅ Config guardada en DB con ID:', savedConfig.id);
     } else {
       socialData.id = 'local_' + Date.now();
-      console.log('⚠️ Config guardada solo en cache local');
     }
 
     this.monitoredItems[this.currentChannel] = [socialData];
@@ -1126,15 +1095,12 @@ class ChannelManager {
       return;
     }
 
-    // Intentar eliminar de DB si tiene ID de DB
     if (this.deleteConfigId && !this.deleteConfigId.toString().startsWith('local_')) {
       await this.deleteFromDatabase(this.deleteConfigId);
     }
 
-    // Eliminar de memoria
     this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
     
-    // Actualizar cache local
     this.saveToStorage();
     
     this.closeDeleteModal();
@@ -1155,7 +1121,7 @@ class ChannelManager {
   saveToStorage() {
     try {
       localStorage.setItem('t2b_monitored_items', JSON.stringify(this.monitoredItems));
-      console.log('💾 Cache local actualizado');
+      localStorage.setItem('t2b_flow_direction', JSON.stringify(this.flowDirection));
     } catch (error) {
       console.error('Error en almacenamiento local');
     }
@@ -1166,24 +1132,14 @@ class ChannelManager {
       const stored = localStorage.getItem('t2b_monitored_items');
       if (stored) {
         this.monitoredItems = JSON.parse(stored);
-        console.log('📂 Datos cargados desde cache local');
+      }
+      
+      const flowStored = localStorage.getItem('t2b_flow_direction');
+      if (flowStored) {
+        this.flowDirection = JSON.parse(flowStored);
       }
     } catch (error) {
       console.error('Error cargando datos locales');
-    }
-  }
-
-  startMonitoring() {
-    const hasItems = Object.values(this.monitoredItems).some(items => items.length > 0);
-    
-    if (hasItems && window.realtimeManager) {
-      window.realtimeManager.startPolling();
-    }
-  }
-
-  stopMonitoring() {
-    if (window.realtimeManager) {
-      window.realtimeManager.stopPolling();
     }
   }
 
@@ -1202,15 +1158,6 @@ class ChannelManager {
   }
 }
 
-// Inicializar y exportar globalmente
 window.channelManager = new ChannelManager();
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', async () => {
-    console.log('📦 Channel Manager listo');
-  });
-} else {
-  console.log('📦 Channel Manager listo');
-}
-
-console.log('✅ Channel Manager v3.7 - PRIORIDAD BASE DE DATOS');
+console.log('✅ Channel Manager v4.0 - FLUJO EVALUADO + DB PRIORITARIA');
