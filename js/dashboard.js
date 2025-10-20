@@ -170,7 +170,17 @@ class Dashboard {
     const neutralData = channels.map(() => Math.floor(Math.random() * 20) + 20);
     const negativeData = channels.map(() => Math.floor(Math.random() * 20) + 10);
 
-    // CORRECCIÓN FINAL: Colores base para cada sentimiento
+    this.updateNetworksChartWithData(channels, positiveData, neutralData, negativeData, selectedChannel);
+  }
+
+  // NUEVO: Método para actualizar con datos específicos
+  updateNetworksChartWithData(channels, positiveData, neutralData, negativeData, selectedChannel = null) {
+    if (!this.chart) return;
+
+    this.selectedChannel = selectedChannel;
+    const labels = channels.map(ch => this.getNetworkName(ch));
+
+    // Colores base para cada sentimiento
     const positiveColor = '#10b981';
     const neutralColor = '#f59e0b';
     const negativeColor = '#ef4444';
@@ -178,7 +188,7 @@ class Dashboard {
     // Actualizar labels
     this.chart.data.labels = labels;
     
-    // CORRECCIÓN FINAL: Lógica de colores según selección
+    // Lógica de colores según selección
     if (!selectedChannel || selectedChannel === 'all') {
       // TODOS LOS CANALES: Mostrar todos con colores reales
       console.log('✅ Modo: TODOS LOS CANALES - Colores reales en todas las barras');
