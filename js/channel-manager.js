@@ -1,7 +1,6 @@
 // ============================================
-// T2B Tech2Business - Channel Manager v3.2
-// Gestión de Canales Multimodal - CORREGIDO
-// Fix: Refresco después de eliminar
+// T2B Tech2Business - Channel Manager v3.3
+// Gestión de Canales Multimodal - FINAL SIN ERRORES
 // ============================================
 
 class ChannelManager {
@@ -26,7 +25,7 @@ class ChannelManager {
   async init() {
     console.log('✅ Channel Manager T2B iniciando...');
     
-    // CORRECCIÓN: Cargar datos ANTES de configurar eventos
+    // Cargar datos ANTES de configurar eventos
     await this.loadFromDatabase();
     
     const channelSelect = document.getElementById('channel-select');
@@ -157,7 +156,7 @@ class ChannelManager {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const updated = await response.json();
         savedConfig = updated[0];
-        console.log('✅ Actualizado');
+        console.log('✅ Actualizado en Supabase');
 
       } else {
         response = await fetch(`${supabaseUrl}/rest/v1/channel_configs`, {
@@ -174,12 +173,13 @@ class ChannelManager {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const created = await response.json();
         savedConfig = created[0];
-        console.log('✅ Guardado');
+        console.log('✅ Guardado en Supabase');
       }
 
       return savedConfig;
 
     } catch (error) {
+      console.error('❌ Error guardando en Supabase');
       this.saveToStorage();
       return null;
     }
@@ -206,10 +206,11 @@ class ChannelManager {
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      console.log('✅ Eliminado');
+      console.log('✅ Eliminado de Supabase');
       return true;
 
     } catch (error) {
+      console.error('❌ Error eliminando de Supabase');
       return false;
     }
   }
@@ -596,10 +597,10 @@ class ChannelManager {
     // Eliminar del array local
     this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
     
-    // CORRECCIÓN: Cerrar modal primero
+    // Cerrar modal primero
     this.closeDeleteModal();
 
-    // CORRECCIÓN: Refrescar la vista según el tipo de canal
+    // Refrescar la vista según el tipo de canal
     if (this.deleteItemChannel === 'email' || this.deleteItemChannel === 'whatsapp') {
       this.renderMonitoredList();
     } else {
@@ -609,7 +610,7 @@ class ChannelManager {
     this.saveToStorage();
     this.triggerDataUpdate();
     
-    // CORRECCIÓN: Mostrar notificación de éxito
+    // Mostrar notificación de éxito
     if (window.showNotification) {
       window.showNotification('Elemento eliminado correctamente', 'success');
     }
@@ -686,7 +687,7 @@ class ChannelManager {
       window.dashboard.updateKPIs(sentimentData);
     }
     
-    // CORRECCIÓN: Lógica de actualización de gráfica
+    // Lógica de actualización de gráfica
     if (window.dashboard && typeof window.dashboard.updateNetworksChartByChannels === 'function') {
       const activeChannels = this.getActiveChannels();
       
@@ -699,37 +700,6 @@ class ChannelManager {
         // Modo individual: mostrar todos los activos pero resaltar solo el seleccionado
         console.log('📊 Actualizando gráfica: Canal', this.currentChannel);
         window.dashboard.updateNetworksChartByChannels(activeChannels, this.currentChannel);
-      }
-    }d.updateKPIs(sentimentData);
-    }
-    
-    // CORRECCIÓN: Lógica de actualización de gráfica
-    if (window.dashboard && typeof window.dashboard.updateNetworksChartByChannels === 'function') {
-      const activeChannels = this.getActiveChannels();
-      
-      if (isAllChannels) {
-        // Modo "Todos": mostrar TODOS los canales disponibles
-        const allChannels = ['email', 'whatsapp', 'x', 'facebook', 'instagram', 'linkedin'];
-        console.log('📊 Actualizando gráfica: TODOS los canales');
-        window.dashboard.updateNetworksChartByChannels(allChannels, 'all');
-      } else if (this.currentChannel && activeChannels.length > 0) {
-        // Modo individual: mostrar todos los activos pero resaltar solo el seleccionado
-        console.log('📊 Actualizando gráfica: Canal', this.currentChannel);
-        window.dashboard.updateNetworksChartByChannels(activeChannels, this.currentChannel);
-      }
-    }
-  }d.updateKPIs(sentimentData);
-    }
-    
-    const activeChannels = this.getActiveChannels();
-    
-    if ((activeChannels.length > 0 || isAllChannels) && window.dashboard) {
-      if (typeof window.dashboard.updateNetworksChartByChannels === 'function') {
-        const channelsToShow = isAllChannels ? 
-          ['email', 'whatsapp', 'x', 'facebook', 'instagram', 'linkedin'] : 
-          activeChannels;
-        
-        window.dashboard.updateNetworksChartByChannels(channelsToShow, this.currentChannel);
       }
     }
   }
@@ -754,14 +724,13 @@ class ChannelManager {
 // Inicializar y exportar globalmente
 window.channelManager = new ChannelManager();
 
-// CORRECCIÓN: Inicializar cuando el DOM esté listo
+// Inicializar cuando el DOM esté listo
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', async () => {
-    // No llamar init aquí, se llamará desde app.js
     console.log('📦 Channel Manager listo para inicializar');
   });
 } else {
   console.log('📦 Channel Manager listo para inicializar');
 }
 
-console.log('✅ Channel Manager v3.2 cargado - CORREGIDO');
+console.log('✅ Channel Manager v3.3 cargado - SIN ERRORES DE SINTAXIS');
