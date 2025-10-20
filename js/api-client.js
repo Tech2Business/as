@@ -1,7 +1,7 @@
 // ============================================
-// T2B Tech2Business - API Client
+// T2B Tech2Business - API Client v1.2
 // Cliente para consumir la API de Sentiment Analysis
-// Version 1.1.0 - Con debugging mejorado
+// VERSIÓN SEGURA - Sin logs de datos sensibles
 // ============================================
 
 class SentimentAPI {
@@ -16,6 +16,9 @@ class SentimentAPI {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${this.SUPABASE_ANON_KEY}`
     };
+    
+    // Modo debug (cambiar a false en producción)
+    this.DEBUG_MODE = false;
   }
 
   /**
@@ -29,28 +32,30 @@ class SentimentAPI {
   }
 
   /**
-   * Maneja los errores de las peticiones - MEJORADO
+   * Maneja los errores de las peticiones - SEGURO
    */
   async handleResponse(response) {
     // Intentar parsear la respuesta
     let data;
     try {
       const text = await response.text();
-      console.log('📄 Response text:', text);
+      
+      // SEGURIDAD: Solo mostrar logs en modo debug
+      if (this.DEBUG_MODE) {
+        console.log('📄 Response status:', response.status);
+        console.log('📄 Response size:', text.length, 'chars');
+      }
+      
       data = text ? JSON.parse(text) : {};
     } catch (error) {
-      console.error('❌ Error parseando respuesta:', error);
+      console.error('❌ Error parseando respuesta');
       throw new Error('Invalid JSON response from server');
     }
     
     if (!response.ok) {
-      console.error('❌ HTTP Error:', {
-        status: response.status,
-        statusText: response.statusText,
-        data: data
-      });
+      // SEGURIDAD: No mostrar data completa, solo el mensaje de error
+      console.error('❌ HTTP Error:', response.status, response.statusText);
       
-      // Mensaje de error más específico
       const errorMessage = data.error?.message || data.message || `HTTP ${response.status}: ${response.statusText}`;
       throw new Error(errorMessage);
     }
@@ -59,7 +64,7 @@ class SentimentAPI {
   }
 
   /**
-   * Analiza el sentimiento de un texto - MEJORADO
+   * Analiza el sentimiento de un texto
    */
   async analyzeSentiment(socialNetwork, content, keywords) {
     if (typeof keywords === 'undefined') {
@@ -73,9 +78,14 @@ class SentimentAPI {
         keywords: keywords
       };
 
-      console.log('🔄 Enviando petición a:', url);
-      console.log('📦 Payload:', payload);
-      console.log('🔑 Headers:', this.headers);
+      if (this.DEBUG_MODE) {
+        console.log('📤 Enviando petición a:', url);
+        console.log('📦 Payload:', { 
+          social_network: socialNetwork, 
+          content_length: content.length,
+          keywords_count: keywords.length 
+        });
+      }
 
       const response = await fetch(url, {
         method: 'POST',
@@ -83,12 +93,13 @@ class SentimentAPI {
         body: JSON.stringify(payload)
       });
 
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+      if (this.DEBUG_MODE) {
+        console.log('📡 Response status:', response.status);
+      }
 
       return await this.handleResponse(response);
     } catch (error) {
-      console.error('❌ Error en analyzeSentiment:', error);
+      console.error('❌ Error en analyzeSentiment');
       throw error;
     }
   }
@@ -108,14 +119,24 @@ class SentimentAPI {
 
       const url = `${this.API_BASE_URL}/get-analysis-history${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
       
+      if (this.DEBUG_MODE) {
+        console.log('📤 Obteniendo historial:', url);
+      }
+
       const response = await fetch(url, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
 
-      return await this.handleResponse(response);
+      const result = await this.handleResponse(response);
+      
+      if (this.DEBUG_MODE && result.metadata) {
+        console.log('📊 Historial obtenido:', result.metadata.total, 'registros');
+      }
+      
+      return result;
     } catch (error) {
-      console.error('Error en getHistory:', error);
+      console.error('❌ Error en getHistory');
       throw error;
     }
   }
@@ -134,7 +155,9 @@ class SentimentAPI {
 
       return await this.handleResponse(response);
     } catch (error) {
-      console.error('Error en healthCheck:', error);
+      if (this.DEBUG_MODE) {
+        console.error('❌ Error en healthCheck');
+      }
       throw error;
     }
   }
@@ -151,9 +174,17 @@ class SentimentAPI {
 
       return response.statistics || null;
     } catch (error) {
-      console.error('Error en getStatistics:', error);
+      console.error('❌ Error en getStatistics');
       throw error;
     }
+  }
+
+  /**
+   * Activa/desactiva modo debug
+   */
+  setDebugMode(enabled) {
+    this.DEBUG_MODE = enabled;
+    console.log(`🔧 Modo debug: ${enabled ? 'ACTIVADO' : 'DESACTIVADO'}`);
   }
 }
 
@@ -234,7 +265,8 @@ function getNetworkEmoji(network) {
   const emojis = {
     email: '📧',
     whatsapp: '💬',
-    twitter: '🐦',
+    twitter: '𝕏',
+    x: '𝕏',
     facebook: '👥',
     instagram: '📸',
     linkedin: '💼',
@@ -263,13 +295,13 @@ function getEmotionEmoji(emotion) {
     confundido: '😕',
     impaciente: '😤',
     agradecido: '🙏',
-    orgulloso: '😏',
+    orgulloso: '😎',
     frustrado: '😣',
     satisfecho: '😌',
     decepcionado: '😞',
     esperanzado: '🤞',
     cinico: '🙄',
-    sarcastico: '😒',
+    sarcastico: '😏',
     arrogante: '😤',
     humilde: '🙇',
     despreciativo: '😒'
@@ -332,7 +364,7 @@ class LocalStorageHelper {
       };
       localStorage.setItem(this.prefix + key, JSON.stringify(item));
     } catch (error) {
-      console.error('Error guardando en localStorage:', error);
+      console.error('Error guardando en localStorage');
     }
   }
 
@@ -354,7 +386,7 @@ class LocalStorageHelper {
 
       return item.value;
     } catch (error) {
-      console.error('Error leyendo de localStorage:', error);
+      console.error('Error leyendo de localStorage');
       return null;
     }
   }
@@ -363,7 +395,7 @@ class LocalStorageHelper {
     try {
       localStorage.removeItem(this.prefix + key);
     } catch (error) {
-      console.error('Error removiendo de localStorage:', error);
+      console.error('Error removiendo de localStorage');
     }
   }
 
@@ -376,7 +408,7 @@ class LocalStorageHelper {
         }
       });
     } catch (error) {
-      console.error('Error limpiando localStorage:', error);
+      console.error('Error limpiando localStorage');
     }
   }
 }
@@ -399,6 +431,6 @@ window.SentimentUtils = {
   formatProcessingTime
 };
 
-console.log('✅ T2B Sentiment API Client v1.1.0 inicializado');
-console.log('📡 API Base URL:', window.sentimentAPI.API_BASE_URL);
-console.log('🔍 Debug mode: ENABLED');
+console.log('✅ T2B Sentiment API Client v1.2 SEGURO inicializado');
+console.log('🔒 Logs de datos sensibles: DESACTIVADOS');
+console.log('💡 Para activar debug: window.sentimentAPI.setDebugMode(true)');

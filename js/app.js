@@ -32,6 +32,12 @@ async function initializeApp() {
       return;
     }
 
+    if (typeof window.dashboard === 'undefined') {
+      console.error('❌ Error: dashboard no está disponible');
+      showNotification('Error al cargar el dashboard', 'error');
+      return;
+    }
+
     console.log('✅ Módulos base cargados');
     
     // CORRECCIÓN: Inicializar en secuencia correcta
