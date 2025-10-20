@@ -572,6 +572,7 @@ class ChannelManager {
             name: config.channel_name,
             created_at: config.created_at,
             is_active: config.is_active,
+            flow_direction: config.flow_direction,
             ...config.config_data
           };
           
@@ -600,9 +601,10 @@ class ChannelManager {
       const payload = {
         channel_type: channelType,
         channel_name: configData.name || configData.searchTerms || 'Sin nombre',
+        flow_direction: this.flowDirection[channelType] || 'both', // ✅ NUEVO
         config_data: configData,
         is_active: true
-      };
+    };
 
       let response;
       let savedConfig;
