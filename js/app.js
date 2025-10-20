@@ -1,6 +1,7 @@
 // ============================================
-// T2B Tech2Business - Main Application v3.0
+// T2B Tech2Business - Main Application v3.1
 // Sistema Multicanal con Análisis en Tiempo Real
+// CORREGIDO: Inicialización secuencial
 // ============================================
 
 const AppState = {
@@ -11,9 +12,9 @@ const AppState = {
 
 // Inicialización principal
 window.addEventListener('load', function() {
-  console.log('🚀 Inicializando T2B Sentiment Analysis v3.0...');
+  console.log('🚀 Inicializando T2B Sentiment Analysis v3.1...');
   console.log('📊 Sistema Multicanal Activo');
-  setTimeout(initializeApp, 100);
+  setTimeout(initializeApp, 200);
 });
 
 async function initializeApp() {
@@ -33,17 +34,25 @@ async function initializeApp() {
 
     console.log('✅ Módulos base cargados');
     
-    // Inicializar componentes
+    // CORRECCIÓN: Inicializar en secuencia correcta
+    console.log('🔄 Paso 1: Inicializando Dashboard...');
     await window.dashboard.init();
     
-    // El channelManager ya se inicializa automáticamente
-    // pero aseguramos que esté listo
-    if (!window.channelManager.initialized) {
-      window.channelManager.init();
-    }
+    console.log('🔄 Paso 2: Inicializando Channel Manager...');
+    await window.channelManager.init();
     
-    // Verificar conexión con la API
+    // Esperar a que cargue los datos
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    console.log('🔄 Paso 3: Verificando conexión API...');
     await checkAPIConnection();
+    
+    // CORRECCIÓN: Si hay canales activos, actualizar dashboard
+    const activeChannels = window.channelManager.getActiveChannels();
+    if (activeChannels.length > 0) {
+      console.log('✅ Canales activos encontrados:', activeChannels);
+      window.channelManager.triggerDataUpdate();
+    }
     
     AppState.initialized = true;
     console.log('✅ Aplicación inicializada correctamente');
@@ -71,7 +80,7 @@ async function checkAPIConnection() {
 function showNotification(message, type = 'info') {
   console.log(`[${type.toUpperCase()}] ${message}`);
   
-  // Crear notificación visual (opcional)
+  // Crear notificación visual
   const notification = document.createElement('div');
   notification.className = `notification notification-${type}`;
   notification.textContent = message;
@@ -100,7 +109,6 @@ function showNotification(message, type = 'info') {
 
 // ==================== ANÁLISIS MANUAL (Opcional) ====================
 
-// Esta función permite análisis manual si se necesita en el futuro
 async function analyzeManualText(channel, content, keywords = []) {
   if (AppState.isAnalyzing) {
     showNotification('Ya hay un análisis en proceso', 'warning');
@@ -154,7 +162,6 @@ async function analyzeManualText(channel, content, keywords = []) {
 
 // ==================== INTEGRACIÓN CON CANALES ====================
 
-// Función para procesar datos de canales monitoreados
 async function processChannelMessages(channel, messages) {
   if (!Array.isArray(messages) || messages.length === 0) {
     return;
@@ -164,7 +171,6 @@ async function processChannelMessages(channel, messages) {
 
   for (const message of messages) {
     try {
-      // Verificar si el mensaje ya fue analizado
       const messageId = message.id || message.message_id;
       const alreadyProcessed = await checkIfProcessed(messageId);
       
@@ -173,7 +179,6 @@ async function processChannelMessages(channel, messages) {
         continue;
       }
 
-      // Analizar el mensaje
       const content = message.content || message.text || message.body;
       const keywords = message.keywords || [];
 
@@ -184,7 +189,6 @@ async function processChannelMessages(channel, messages) {
       );
 
       if (response.success) {
-        // Marcar como procesado
         await markAsProcessed(messageId, response.data.analysis_id);
         console.log(`✅ Mensaje ${messageId} procesado`);
       }
@@ -194,11 +198,9 @@ async function processChannelMessages(channel, messages) {
     }
   }
 
-  // Actualizar dashboard después de procesar todos los mensajes
   await window.dashboard.loadStatistics();
 }
 
-// Funciones auxiliares para el tracking de mensajes procesados
 async function checkIfProcessed(messageId) {
   try {
     const processed = localStorage.getItem(`t2b_processed_${messageId}`);
@@ -297,7 +299,8 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-console.log('\n✅ T2B Sentiment Analysis v3.0');
+console.log('\n✅ T2B Sentiment Analysis v3.1 - CORREGIDO');
 console.log('📊 Sistema Multicanal Activo');
 console.log('🎨 Animaciones suaves tipo Power BI');
-console.log('⚡ Actualización en tiempo real\n');
+console.log('⚡ Actualización en tiempo real');
+console.log('💾 Persistencia en Supabase\n');

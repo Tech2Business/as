@@ -20,13 +20,14 @@ class ChannelManager {
     this.deleteItemIndex = -1;
     this.deleteItemChannel = '';
     this.deleteConfigId = null;
-    
-    // Cargar datos desde Supabase al iniciar
-    this.loadFromDatabase();
+    this.initialized = false;
   }
 
   async init() {
-    console.log('✅ Channel Manager T2B iniciado');
+    console.log('✅ Channel Manager T2B iniciando...');
+    
+    // CORRECCIÓN: Cargar datos ANTES de configurar eventos
+    await this.loadFromDatabase();
     
     const channelSelect = document.getElementById('channel-select');
     if (channelSelect) {
@@ -40,6 +41,9 @@ class ChannelManager {
         }
       });
     }
+    
+    this.initialized = true;
+    console.log('✅ Channel Manager T2B iniciado - Datos cargados');
   }
 
   // ==================== SUPABASE - CARGA DE DATOS ====================
@@ -54,6 +58,8 @@ class ChannelManager {
 
       const supabaseUrl = window.sentimentAPI.SUPABASE_URL;
       const supabaseKey = window.sentimentAPI.SUPABASE_ANON_KEY;
+      
+      console.log('🔄 Cargando configuraciones desde Supabase...');
       
       const response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?select=*&order=created_at.desc`, {
         method: 'GET',
@@ -70,6 +76,9 @@ class ChannelManager {
 
       const configs = await response.json();
       
+      console.log(`📦 ${configs.length} configuraciones encontradas en Supabase`);
+      
+      // Limpiar arrays
       this.monitoredItems = {
         email: [],
         whatsapp: [],
@@ -79,6 +88,7 @@ class ChannelManager {
         linkedin: []
       };
 
+      // Organizar por canal
       configs.forEach(config => {
         if (this.monitoredItems[config.channel_type]) {
           this.monitoredItems[config.channel_type].push({
@@ -91,10 +101,21 @@ class ChannelManager {
         }
       });
 
-      console.log('✅ Datos cargados');
+      // Guardar backup en localStorage
+      this.saveToStorage();
+      
+      console.log('✅ Datos cargados desde Supabase:', {
+        email: this.monitoredItems.email.length,
+        whatsapp: this.monitoredItems.whatsapp.length,
+        x: this.monitoredItems.x.length,
+        facebook: this.monitoredItems.facebook.length,
+        instagram: this.monitoredItems.instagram.length,
+        linkedin: this.monitoredItems.linkedin.length
+      });
       
     } catch (error) {
-      console.log('⚠️ Modo demo activo');
+      console.error('❌ Error cargando desde Supabase:', error);
+      console.log('⚠️ Usando datos locales como fallback');
       this.loadFromStorage();
     }
   }
@@ -665,6 +686,41 @@ class ChannelManager {
       window.dashboard.updateKPIs(sentimentData);
     }
     
+    // CORRECCIÓN: Lógica de actualización de gráfica
+    if (window.dashboard && typeof window.dashboard.updateNetworksChartByChannels === 'function') {
+      const activeChannels = this.getActiveChannels();
+      
+      if (isAllChannels) {
+        // Modo "Todos": mostrar TODOS los canales disponibles
+        const allChannels = ['email', 'whatsapp', 'x', 'facebook', 'instagram', 'linkedin'];
+        console.log('📊 Actualizando gráfica: TODOS los canales');
+        window.dashboard.updateNetworksChartByChannels(allChannels, 'all');
+      } else if (this.currentChannel && activeChannels.length > 0) {
+        // Modo individual: mostrar todos los activos pero resaltar solo el seleccionado
+        console.log('📊 Actualizando gráfica: Canal', this.currentChannel);
+        window.dashboard.updateNetworksChartByChannels(activeChannels, this.currentChannel);
+      }
+    }d.updateKPIs(sentimentData);
+    }
+    
+    // CORRECCIÓN: Lógica de actualización de gráfica
+    if (window.dashboard && typeof window.dashboard.updateNetworksChartByChannels === 'function') {
+      const activeChannels = this.getActiveChannels();
+      
+      if (isAllChannels) {
+        // Modo "Todos": mostrar TODOS los canales disponibles
+        const allChannels = ['email', 'whatsapp', 'x', 'facebook', 'instagram', 'linkedin'];
+        console.log('📊 Actualizando gráfica: TODOS los canales');
+        window.dashboard.updateNetworksChartByChannels(allChannels, 'all');
+      } else if (this.currentChannel && activeChannels.length > 0) {
+        // Modo individual: mostrar todos los activos pero resaltar solo el seleccionado
+        console.log('📊 Actualizando gráfica: Canal', this.currentChannel);
+        window.dashboard.updateNetworksChartByChannels(activeChannels, this.currentChannel);
+      }
+    }
+  }d.updateKPIs(sentimentData);
+    }
+    
     const activeChannels = this.getActiveChannels();
     
     if ((activeChannels.length > 0 || isAllChannels) && window.dashboard) {
@@ -698,13 +754,14 @@ class ChannelManager {
 // Inicializar y exportar globalmente
 window.channelManager = new ChannelManager();
 
-// Inicializar cuando el DOM esté listo
+// CORRECCIÓN: Inicializar cuando el DOM esté listo
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    window.channelManager.init();
+  document.addEventListener('DOMContentLoaded', async () => {
+    // No llamar init aquí, se llamará desde app.js
+    console.log('📦 Channel Manager listo para inicializar');
   });
 } else {
-  window.channelManager.init();
+  console.log('📦 Channel Manager listo para inicializar');
 }
 
 console.log('✅ Channel Manager v3.2 cargado - CORREGIDO');
