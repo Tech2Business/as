@@ -581,4 +581,4 @@ window.dashboard = new Dashboard();
 window.displayAnalysisResults = displayAnalysisResults;
 window.clearAnalysisResults = clearAnalysisResults;
 
-console.log('✅ Dashboard v4.1 - POWER BI STYLE ANIMATIONS');
+console.log('✅ Dashboard v4.1 - POWER BI STYLE ANIMATIONS ---');
