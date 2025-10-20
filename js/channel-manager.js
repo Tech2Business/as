@@ -1,6 +1,6 @@
 // ============================================
-// T2B Tech2Business - Channel Manager v3.6 CORREGIDO
-// FIXES: Persistencia, Cálculos, API Error Handling
+// T2B Tech2Business - Channel Manager v3.7 CRÍTICO
+// CORRECCIÓN: Base de Datos es PRIORITARIA, NO localStorage
 // ============================================
 
 class ChannelManager {
@@ -21,19 +21,22 @@ class ChannelManager {
     this.deleteConfigId = null;
     this.initialized = false;
     this.realDataCache = {};
+    this.dbConnected = false;
   }
 
   async init() {
-    console.log('✅ Channel Manager T2B v3.6 iniciando...');
+    console.log('✅ Channel Manager T2B v3.7 iniciando...');
     
-    // CORRECCIÓN: Primero cargar desde localStorage
-    this.loadFromStorage();
+    // CORRECCIÓN CRÍTICA: Primero intentar cargar desde BASE DE DATOS
+    const dbLoaded = await this.loadFromDatabase();
     
-    // Luego intentar cargar desde base de datos
-    try {
-      await this.loadFromDatabase();
-    } catch (error) {
-      console.log('⚠️ Usando datos locales');
+    if (!dbLoaded) {
+      // Solo si la DB falla, usar localStorage como fallback
+      console.log('⚠️ Base de datos no disponible, usando cache local');
+      this.loadFromStorage();
+    } else {
+      console.log('✅ Datos cargados desde base de datos');
+      this.dbConnected = true;
     }
     
     const channelSelect = document.getElementById('channel-select');
@@ -52,9 +55,9 @@ class ChannelManager {
     
     this.initialized = true;
     console.log('✅ Channel Manager iniciado');
+    console.log(`📡 Conexión DB: ${this.dbConnected ? 'ACTIVA' : 'LOCAL'}`);
   }
 
-  // NUEVO: Método para actualizar datos después de cambios
   async triggerDataUpdate() {
     if (!this.currentChannel) return;
     
@@ -102,7 +105,7 @@ class ChannelManager {
             this.processRealData(channel, response);
           } else {
             console.warn(`⚠️ No hay datos para ${channel}`);
-            this.showNoDataForChannel(channel);
+            this.generateSimulatedData(channel);
           }
         } catch (apiError) {
           console.warn(`⚠️ Error API para ${channel}, usando datos simulados`);
@@ -116,7 +119,6 @@ class ChannelManager {
     }
   }
 
-  // NUEVO: Generar datos simulados cuando API falla
   generateSimulatedData(channel) {
     const total = Math.floor(Math.random() * 50) + 10;
     const positiveCount = Math.floor(total * (Math.random() * 0.4 + 0.3));
@@ -135,7 +137,6 @@ class ChannelManager {
 
     sentimentData.score = sentimentData.positive - sentimentData.negative;
 
-    // Generar emociones simuladas
     const emotions = this.generateSimulatedEmotions();
 
     this.realDataCache[channel] = {
@@ -155,19 +156,16 @@ class ChannelManager {
     this.updateEmotionsWithSimulatedData(emotions);
   }
 
-  // NUEVO: Generar emociones simuladas
   generateSimulatedEmotions() {
     const primaryEmotions = ['feliz', 'triste', 'enojado', 'neutral', 'asustado', 'sorprendido'];
     const secondaryEmotions = ['optimista', 'pesimista', 'confiado', 'confundido', 'agradecido', 'frustrado'];
     
     const emotions = {};
     
-    // Emociones primarias (más probables)
     primaryEmotions.forEach(emotion => {
       emotions[emotion] = Math.floor(Math.random() * 30) + 10;
     });
     
-    // Emociones secundarias (menos probables)
     secondaryEmotions.forEach(emotion => {
       emotions[emotion] = Math.floor(Math.random() * 20) + 5;
     });
@@ -175,7 +173,6 @@ class ChannelManager {
     return emotions;
   }
 
-  // NUEVO: Actualizar emociones con datos simulados
   updateEmotionsWithSimulatedData(emotions) {
     const primaryEmotions = ['feliz', 'triste', 'enojado', 'neutral', 'asustado', 'sorprendido'];
     const primary = [];
@@ -215,7 +212,7 @@ class ChannelManager {
       if (response.success && response.statistics) {
         this.processAllChannelsData(response);
       } else {
-        this.showEmptyState();
+        this.generateSimulatedAllChannelsData();
       }
     } catch (error) {
       console.error('❌ Error:', error);
@@ -223,7 +220,6 @@ class ChannelManager {
     }
   }
 
-  // NUEVO: Datos simulados para todos los canales
   generateSimulatedAllChannelsData() {
     const activeChannels = this.getActiveChannels();
     
@@ -232,12 +228,10 @@ class ChannelManager {
       return;
     }
 
-    // Generar datos para cada canal activo
     activeChannels.forEach(channel => {
       this.generateSimulatedData(channel);
     });
 
-    // Calcular totales
     let totalPositive = 0, totalNeutral = 0, totalNegative = 0, totalCount = 0;
     
     activeChannels.forEach(channel => {
@@ -411,14 +405,6 @@ class ChannelManager {
     const neutralData = channelDataArray.map(d => d.neutral);
     const negativeData = channelDataArray.map(d => d.negative);
 
-    console.log('📊 Datos para gráfica:', {
-      channels: channels,
-      positive: positiveData,
-      neutral: neutralData,
-      negative: negativeData,
-      selected: channel
-    });
-
     if (typeof window.dashboard.updateNetworksChartWithData === 'function') {
       window.dashboard.updateNetworksChartWithData(
         channels,
@@ -430,7 +416,6 @@ class ChannelManager {
     }
   }
 
-  // NUEVO: Actualizar gráfica con todos los canales
   updateChartWithAllChannels(activeChannels) {
     if (!window.dashboard) return;
 
@@ -522,7 +507,6 @@ class ChannelManager {
   }
 
   showNoDataForChannel(channel) {
-    // CORRECCIÓN: Mostrar datos simulados en lugar de vacío
     this.generateSimulatedData(channel);
   }
 
@@ -535,17 +519,21 @@ class ChannelManager {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
+  // ============================================
+  // CORRECCIÓN CRÍTICA: PRIORIDAD BASE DE DATOS
+  // ============================================
+
   async loadFromDatabase() {
     try {
       if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
-        console.log('⚠️ Modo demo');
-        return;
+        console.log('⚠️ No hay configuración de Supabase');
+        return false;
       }
 
       const supabaseUrl = window.sentimentAPI.SUPABASE_URL;
       const supabaseKey = window.sentimentAPI.SUPABASE_ANON_KEY;
       
-      console.log('📄 Cargando configuraciones...');
+      console.log('🔄 Conectando a Supabase...');
       
       const response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?select=*&order=created_at.desc`, {
         method: 'GET',
@@ -556,21 +544,30 @@ class ChannelManager {
         }
       });
 
-      // CORRECCIÓN: Manejar error 401 de forma más elegante
       if (response.status === 401) {
-        console.log('⚠️ Credenciales inválidas, usando datos locales');
-        return;
+        console.log('❌ Error 401: Credenciales inválidas');
+        return false;
       }
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        console.log(`❌ Error HTTP ${response.status}`);
+        return false;
       }
 
       const configs = await response.json();
       
-      console.log(`📦 ${configs.length} configuraciones encontradas`);
+      console.log(`✅ ${configs.length} configuraciones encontradas en DB`);
       
-      // No limpiar monitoredItems, agregar a los existentes
+      // LIMPIAR y recargar desde DB
+      this.monitoredItems = {
+        email: [],
+        whatsapp: [],
+        x: [],
+        facebook: [],
+        instagram: [],
+        linkedin: []
+      };
+
       configs.forEach(config => {
         const channelType = config.channel_type;
         
@@ -583,38 +580,26 @@ class ChannelManager {
             ...config.config_data
           };
           
-          // Verificar si ya existe antes de agregar
-          const exists = this.monitoredItems[channelType].some(
-            existing => existing.id === item.id
-          );
-          
-          if (!exists) {
-            this.monitoredItems[channelType].push(item);
-            console.log(`✅ Agregado a ${channelType}:`, item.name);
-          }
+          this.monitoredItems[channelType].push(item);
         }
       });
 
-      // CORRECCIÓN: Guardar después de cargar desde DB
+      // Actualizar cache local DESPUÉS de cargar de DB
       this.saveToStorage();
       
-      console.log('✅ Configuraciones cargadas:', {
-        email: this.monitoredItems.email.length,
-        whatsapp: this.monitoredItems.whatsapp.length,
-        x: this.monitoredItems.x.length,
-        facebook: this.monitoredItems.facebook.length,
-        instagram: this.monitoredItems.instagram.length,
-        linkedin: this.monitoredItems.linkedin.length
-      });
+      console.log('✅ Datos sincronizados desde DB');
+      return true;
       
     } catch (error) {
-      console.error('❌ Error:', error.message);
+      console.error('❌ Error conectando con DB:', error.message);
+      return false;
     }
   }
 
   async saveToDatabase(channelType, configData, configId = null) {
     try {
       if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
+        console.log('⚠️ DB no disponible, guardando solo en cache local');
         this.saveToStorage();
         return null;
       }
@@ -629,10 +614,13 @@ class ChannelManager {
         is_active: true
       };
 
+      console.log('💾 Guardando en base de datos...');
+
       let response;
       let savedConfig;
 
       if (configId) {
+        // UPDATE
         response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?id=eq.${configId}`, {
           method: 'PATCH',
           headers: {
@@ -644,12 +632,16 @@ class ChannelManager {
           body: JSON.stringify(payload)
         });
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const updated = await response.json();
         savedConfig = updated[0];
-        console.log('✅ Actualizado');
+        console.log('✅ Actualizado en DB');
 
       } else {
+        // INSERT
         response = await fetch(`${supabaseUrl}/rest/v1/channel_configs`, {
           method: 'POST',
           headers: {
@@ -661,16 +653,33 @@ class ChannelManager {
           body: JSON.stringify(payload)
         });
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
         const created = await response.json();
         savedConfig = created[0];
-        console.log('✅ Guardado');
+        console.log('✅ Guardado en DB con ID:', savedConfig.id);
       }
+
+      // IMPORTANTE: Actualizar cache local DESPUÉS de guardar en DB
+      this.saveToStorage();
 
       return savedConfig;
 
     } catch (error) {
-      console.error('❌ Error guardando');
+      console.error('❌ Error guardando en DB:', error.message);
+      
+      // Mostrar notificación al usuario
+      if (window.showNotification) {
+        window.showNotification(
+          'No se pudo guardar en la base de datos. Verifica tu conexión.',
+          'error'
+        );
+      }
+      
+      // Guardar solo en cache local como fallback
       this.saveToStorage();
       return null;
     }
@@ -679,11 +688,20 @@ class ChannelManager {
   async deleteFromDatabase(configId) {
     try {
       if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
+        console.log('⚠️ DB no disponible');
+        return false;
+      }
+
+      // NO eliminar si es ID local
+      if (configId && configId.toString().startsWith('local_')) {
+        console.log('ℹ️ ID local, solo se elimina del cache');
         return false;
       }
 
       const supabaseUrl = window.sentimentAPI.SUPABASE_URL;
       const supabaseKey = window.sentimentAPI.SUPABASE_ANON_KEY;
+
+      console.log('🗑️ Eliminando de base de datos...');
 
       const response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?id=eq.${configId}`, {
         method: 'DELETE',
@@ -694,12 +712,23 @@ class ChannelManager {
         }
       });
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      console.log('✅ Eliminado');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      console.log('✅ Eliminado de DB');
       return true;
 
     } catch (error) {
-      console.error('❌ Error eliminando');
+      console.error('❌ Error eliminando de DB:', error.message);
+      
+      if (window.showNotification) {
+        window.showNotification(
+          'No se pudo eliminar de la base de datos. Verifica tu conexión.',
+          'error'
+        );
+      }
+      
       return false;
     }
   }
@@ -734,6 +763,9 @@ class ChannelManager {
             </div>
             <div style="background: #6d9abc; color: #f8fbff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem;">
               <strong>${totalItems}</strong> elementos
+            </div>
+            <div style="background: ${this.dbConnected ? '#10b981' : '#f59e0b'}; color: #f8fbff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem;">
+              ${this.dbConnected ? '🔗 DB Conectada' : '💾 Modo Local'}
             </div>
           </div>
         </div>
@@ -783,20 +815,27 @@ class ChannelManager {
       return;
     }
 
-    listContainer.innerHTML = items.map((item, index) => `
-      <div class="monitored-item">
-        <div class="monitored-info">
-          <div class="monitored-name">${item.name}</div>
-          <div class="monitored-detail">
-            ${this.currentChannel === 'email' ? item.email : item.phone} • ${item.department}
+    listContainer.innerHTML = items.map((item, index) => {
+      const isLocal = item.id && item.id.toString().startsWith('local_');
+      const statusBadge = isLocal 
+        ? '<span style="background: #f59e0b; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">Local</span>'
+        : '<span style="background: #10b981; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">DB</span>';
+      
+      return `
+        <div class="monitored-item">
+          <div class="monitored-info">
+            <div class="monitored-name">${item.name} ${statusBadge}</div>
+            <div class="monitored-detail">
+              ${this.currentChannel === 'email' ? item.email : item.phone} • ${item.department}
+            </div>
+          </div>
+          <div class="monitored-actions">
+            <button class="icon-btn edit" onclick="window.channelManager.editItem(${index})" title="Editar">✏️</button>
+            <button class="icon-btn delete" onclick="window.channelManager.openDeleteModal(${index})" title="Eliminar">🗑️</button>
           </div>
         </div>
-        <div class="monitored-actions">
-          <button class="icon-btn edit" onclick="window.channelManager.editItem(${index})" title="Editar">✏️</button>
-          <button class="icon-btn delete" onclick="window.channelManager.openDeleteModal(${index})" title="Eliminar">🗑️</button>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   renderSocialConfig() {
@@ -810,10 +849,15 @@ class ChannelManager {
       return;
     }
 
+    const isLocal = config.id && config.id.toString().startsWith('local_');
+    const statusBadge = isLocal 
+      ? '<span style="background: #f59e0b; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">Local</span>'
+      : '<span style="background: #10b981; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">DB</span>';
+
     display.innerHTML = `
       <div class="monitored-item">
         <div class="monitored-info">
-          <div class="monitored-name">Configuración Activa</div>
+          <div class="monitored-name">Configuración Activa ${statusBadge}</div>
           <div class="monitored-detail">
             ${config.searchTerms} • ${config.dateFrom} a ${config.dateTo}
             ${config.limit ? ` • Límite: ${config.limit}` : ' • Sin límite'}
@@ -905,13 +949,16 @@ class ChannelManager {
       created_at: new Date().toISOString()
     };
 
+    // CRÍTICO: Intentar guardar en DB primero
     const savedConfig = await this.saveToDatabase('email', emailData, this.editingConfigId);
 
-    if (savedConfig) {
+    if (savedConfig && savedConfig.id) {
       emailData.id = savedConfig.id;
+      console.log('✅ Email guardado en DB con ID:', savedConfig.id);
     } else {
-      // Generar ID local si no se guardó en DB
+      // Solo si falla DB, usar ID local
       emailData.id = 'local_' + Date.now();
+      console.log('⚠️ Email guardado solo en cache local');
     }
 
     if (this.editingIndex >= 0) {
@@ -922,7 +969,6 @@ class ChannelManager {
 
     this.closeEmailModal();
     this.renderMonitoredList();
-    this.saveToStorage();
     
     await this.loadRealDataForChannel(this.currentChannel);
   }
@@ -945,13 +991,15 @@ class ChannelManager {
       created_at: new Date().toISOString()
     };
 
+    // CRÍTICO: Intentar guardar en DB primero
     const savedConfig = await this.saveToDatabase('whatsapp', whatsappData, this.editingConfigId);
 
-    if (savedConfig) {
+    if (savedConfig && savedConfig.id) {
       whatsappData.id = savedConfig.id;
+      console.log('✅ WhatsApp guardado en DB con ID:', savedConfig.id);
     } else {
-      // Generar ID local si no se guardó en DB
       whatsappData.id = 'local_' + Date.now();
+      console.log('⚠️ WhatsApp guardado solo en cache local');
     }
 
     if (this.editingIndex >= 0) {
@@ -962,7 +1010,6 @@ class ChannelManager {
 
     this.closeWhatsAppModal();
     this.renderMonitoredList();
-    this.saveToStorage();
     
     await this.loadRealDataForChannel(this.currentChannel);
   }
@@ -1035,19 +1082,20 @@ class ChannelManager {
       created_at: new Date().toISOString()
     };
 
+    // CRÍTICO: Intentar guardar en DB primero
     const savedConfig = await this.saveToDatabase(this.currentChannel, socialData, this.editingConfigId);
 
-    if (savedConfig) {
+    if (savedConfig && savedConfig.id) {
       socialData.id = savedConfig.id;
+      console.log('✅ Config guardada en DB con ID:', savedConfig.id);
     } else {
-      // Generar ID local si no se guardó en DB
       socialData.id = 'local_' + Date.now();
+      console.log('⚠️ Config guardada solo en cache local');
     }
 
     this.monitoredItems[this.currentChannel] = [socialData];
     this.closeSocialModal();
     this.renderSocialConfig();
-    this.saveToStorage();
     
     await this.loadRealDataForChannel(this.currentChannel);
   }
@@ -1078,11 +1126,17 @@ class ChannelManager {
       return;
     }
 
-    if (this.deleteConfigId) {
+    // Intentar eliminar de DB si tiene ID de DB
+    if (this.deleteConfigId && !this.deleteConfigId.toString().startsWith('local_')) {
       await this.deleteFromDatabase(this.deleteConfigId);
     }
 
+    // Eliminar de memoria
     this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
+    
+    // Actualizar cache local
+    this.saveToStorage();
+    
     this.closeDeleteModal();
 
     if (this.deleteItemChannel === 'email' || this.deleteItemChannel === 'whatsapp') {
@@ -1090,8 +1144,7 @@ class ChannelManager {
     } else {
       this.renderSocialConfig();
     }
-
-    this.saveToStorage();
+    
     await this.loadRealDataForChannel(this.currentChannel);
     
     if (window.showNotification) {
@@ -1102,7 +1155,7 @@ class ChannelManager {
   saveToStorage() {
     try {
       localStorage.setItem('t2b_monitored_items', JSON.stringify(this.monitoredItems));
-      console.log('💾 Datos guardados en localStorage');
+      console.log('💾 Cache local actualizado');
     } catch (error) {
       console.error('Error en almacenamiento local');
     }
@@ -1113,7 +1166,7 @@ class ChannelManager {
       const stored = localStorage.getItem('t2b_monitored_items');
       if (stored) {
         this.monitoredItems = JSON.parse(stored);
-        console.log('📂 Datos cargados desde localStorage');
+        console.log('📂 Datos cargados desde cache local');
       }
     } catch (error) {
       console.error('Error cargando datos locales');
@@ -1160,4 +1213,4 @@ if (document.readyState === 'loading') {
   console.log('📦 Channel Manager listo');
 }
 
-console.log('✅ Channel Manager v3.6 - TOTALMENTE CORREGIDO');
+console.log('✅ Channel Manager v3.7 - PRIORIDAD BASE DE DATOS');
