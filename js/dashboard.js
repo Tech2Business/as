@@ -1,8 +1,9 @@
 // ============================================
-// T2B Tech2Business - Dashboard v4.1 POWER BI
-// ✅ Transiciones suaves tipo Power BI (800ms)
-// ✅ TODAS las barras siempre visibles
-// ✅ Solo canal seleccionado con color
+// T2B Tech2Business - Dashboard v5.0 POWER BI
+// 🔄 LÓGICA DE GRÁFICO COMPLETAMENTE REINICIADA
+// ✅ Transiciones suaves tipo Power BI (1200ms)
+// ✅ Gráfico reducido a la mitad
+// ✅ Lógica clara: ALL = todas con color, SPECIFIC = solo una con color
 // ============================================
 
 class Dashboard {
@@ -11,12 +12,13 @@ class Dashboard {
     this.channelData = {};
     this.selectedChannel = null;
     
-    // COLORES CORRECTOS
+    // COLORES FINALES
     this.COLORS = {
-      positive: '#10b981',
-      neutral: '#9ca3af',     // GRIS
-      negative: '#ef4444',
-      transparentBorder: '#d0d3d6',
+      positive: '#10b981',      // Verde
+      neutral: '#9ca3af',       // Gris
+      negative: '#ef4444',      // Rojo
+      transparent: 'rgba(255, 255, 255, 0.1)', // Transparente
+      borderInactive: '#60a5fa',  // Azul para bordes inactivos
       gridColor: 'rgba(208, 211, 214, 0.1)'
     };
   }
@@ -27,7 +29,9 @@ class Dashboard {
       await this.loadStatistics();
       this.startAutoUpdate();
       
-      console.log('✅ Dashboard T2B v4.1 Power BI Style inicializado');
+      console.log('✅ Dashboard T2B v5.0 Power BI Style inicializado');
+      console.log('📊 Gráfico reducido a la mitad');
+      console.log('🎨 Transiciones suaves: 1200ms');
     } catch (error) {
       console.error('Error inicializando dashboard:', error);
     }
@@ -35,7 +39,13 @@ class Dashboard {
 
   initializeChart() {
     const ctx = document.getElementById('networks-chart');
-    if (!ctx) return;
+    if (!ctx) {
+      console.error('❌ Canvas networks-chart no encontrado');
+      return;
+    }
+
+    // ✅ GRÁFICO REDUCIDO A LA MITAD
+    ctx.style.maxHeight = '250px'; // Reducido de 500px a 250px
 
     this.chart = new Chart(ctx, {
       type: 'bar',
@@ -74,16 +84,26 @@ class Dashboard {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        // ✅ TRANSICIONES SUAVES TIPO POWER BI
         animation: {
-          duration: 800,  // ✅ Power BI: 800ms
-          easing: 'easeInOutQuart',  // ✅ Suave
+          duration: 1200,  // 1.2 segundos - MUY SUAVE
+          easing: 'easeInOutQuart',
           delay: (context) => {
-            // ✅ Delay escalonado para efecto dramático
+            // Delay escalonado entre barras para efecto dramático
             let delay = 0;
             if (context.type === 'data' && context.mode === 'default') {
-              delay = context.dataIndex * 80;  // 80ms entre barras
+              delay = context.dataIndex * 120;  // 120ms entre cada barra
             }
             return delay;
+          }
+        },
+        // ✅ TRANSICIONES SUAVES AL ACTUALIZAR
+        transitions: {
+          active: {
+            animation: {
+              duration: 1200,
+              easing: 'easeInOutQuart'
+            }
           }
         },
         plugins: {
@@ -123,7 +143,7 @@ class Dashboard {
             },
             ticks: { 
               color: '#f8fbff',
-              font: { size: 11, family: 'Gotham, Inter' }
+              font: { size: 10, family: 'Gotham, Inter' }
             }
           },
           y: {
@@ -137,7 +157,7 @@ class Dashboard {
             },
             ticks: { 
               color: '#f8fbff',
-              font: { size: 11, family: 'Gotham, Inter' },
+              font: { size: 10, family: 'Gotham, Inter' },
               callback: function(value) {
                 return value + '%';
               }
@@ -146,6 +166,8 @@ class Dashboard {
         }
       }
     });
+
+    console.log('✅ Chart.js inicializado con animaciones Power BI');
   }
 
   async loadStatistics() {
@@ -159,19 +181,8 @@ class Dashboard {
         this.updateNetworksChart(response.statistics.network_distribution);
       }
     } catch (error) {
-      console.log('ℹ️ Usando datos simulados');
-      this.updateWithChannelData();
+      console.log('ℹ️ Usando datos simulados para gráfico inicial');
     }
-  }
-
-  updateWithChannelData(monitoredItems) {
-    if (!window.channelManager) return;
-    
-    const activeChannels = window.channelManager.getActiveChannels();
-    
-    if (activeChannels.length === 0) return;
-
-    this.updateNetworksChartByChannels(activeChannels);
   }
 
   updateNetworksChart(networkDistribution) {
@@ -184,181 +195,236 @@ class Dashboard {
     this.chart.data.datasets[0].data = values;
     
     this.chart.update({
-      duration: 800,
+      duration: 1200,
       easing: 'easeInOutQuart'
     });
   }
 
-  updateNetworksChartByChannels(channels, selectedChannel = null) {
-    if (!this.chart) return;
-
-    this.selectedChannel = selectedChannel;
-    
-    const labels = channels.map(ch => this.getNetworkName(ch));
-    
-    const positiveData = channels.map(() => Math.floor(Math.random() * 40) + 40);
-    const neutralData = channels.map(() => Math.floor(Math.random() * 20) + 20);
-    const negativeData = channels.map(() => Math.floor(Math.random() * 20) + 10);
-
-    this.updateNetworksChartWithData(channels, positiveData, neutralData, negativeData, selectedChannel);
-  }
-
-  // ✅ MÉTODO CRÍTICO CORREGIDO
+  // ============================================
+  // 🎯 MÉTODO PRINCIPAL - LÓGICA REINICIADA
+  // ============================================
   updateNetworksChartWithData(channels, positiveData, neutralData, negativeData, selectedChannel = null) {
-    if (!this.chart) return;
+    if (!this.chart) {
+      console.warn('⚠️ Chart no inicializado');
+      return;
+    }
 
-    console.log('📊 Actualizando gráfica:', {
+    console.log('📊 ACTUALIZANDO GRÁFICO:', {
       channels,
       selectedChannel,
-      positiveData,
-      neutralData,
-      negativeData
+      mode: selectedChannel === 'all' ? 'TODAS CON COLOR' : 'SOLO UNA CON COLOR'
     });
 
     this.selectedChannel = selectedChannel;
+
+    // ✅ PASO 1: Actualizar labels
     const labels = channels.map(ch => this.getNetworkName(ch));
-
-    // ✅ Actualizar labels
     this.chart.data.labels = labels;
+
+    // ✅ PASO 2: LÓGICA SIMPLE Y CLARA
+    const isAllMode = (selectedChannel === 'all' || selectedChannel === null);
+
+    // ============================================
+    // 🎨 PREPARAR COLORES SEGÚN EL MODO
+    // ============================================
     
-    // ✅ LÓGICA CORREGIDA: Preparar arrays de colores
-    const prepareColors = (color, transparentColor = 'transparent') => {
-      if (!selectedChannel || selectedChannel === 'all') {
-        // TODOS: Todas las barras con color real
-        return channels.map(() => color);
-      } else {
-        // ESPECÍFICO: Solo el seleccionado con color, resto transparente
-        return channels.map((ch) => ch === selectedChannel ? color : transparentColor);
-      }
-    };
-
-    const prepareBorderColors = (color) => {
-      if (!selectedChannel || selectedChannel === 'all') {
-        // TODOS: Bordes con color real
-        return channels.map(() => color);
-      } else {
-        // ESPECÍFICO: Borde del seleccionado con color, resto gris claro
-        return channels.map((ch) => ch === selectedChannel ? color : this.COLORS.transparentBorder);
-      }
-    };
-
-    // ✅ DATASET POSITIVO
+    // DATASET POSITIVO (Verde)
     this.chart.data.datasets[0].data = positiveData;
-    this.chart.data.datasets[0].backgroundColor = prepareColors(this.COLORS.positive);
-    this.chart.data.datasets[0].borderColor = prepareBorderColors(this.COLORS.positive);
-    
-    // ✅ DATASET NEUTRAL (GRIS)
-    this.chart.data.datasets[1].data = neutralData;
-    this.chart.data.datasets[1].backgroundColor = prepareColors(this.COLORS.neutral);
-    this.chart.data.datasets[1].borderColor = prepareBorderColors(this.COLORS.neutral);
-    
-    // ✅ DATASET NEGATIVO
-    this.chart.data.datasets[2].data = negativeData;
-    this.chart.data.datasets[2].backgroundColor = prepareColors(this.COLORS.negative);
-    this.chart.data.datasets[2].borderColor = prepareBorderColors(this.COLORS.negative);
+    this.chart.data.datasets[0].backgroundColor = channels.map(ch => {
+      if (isAllMode) {
+        return this.COLORS.positive; // ✅ Todas las barras con verde
+      } else {
+        return ch === selectedChannel ? this.COLORS.positive : this.COLORS.transparent; // ✅ Solo la seleccionada verde
+      }
+    });
+    this.chart.data.datasets[0].borderColor = channels.map(ch => {
+      if (isAllMode) {
+        return this.COLORS.positive; // ✅ Borde verde para todas
+      } else {
+        return ch === selectedChannel ? this.COLORS.positive : this.COLORS.borderInactive; // ✅ Borde azul para inactivas
+      }
+    });
 
-    // ✅ ACTUALIZAR CON ANIMACIÓN POWER BI
+    // DATASET NEUTRAL (Gris)
+    this.chart.data.datasets[1].data = neutralData;
+    this.chart.data.datasets[1].backgroundColor = channels.map(ch => {
+      if (isAllMode) {
+        return this.COLORS.neutral; // ✅ Todas las barras con gris
+      } else {
+        return ch === selectedChannel ? this.COLORS.neutral : this.COLORS.transparent; // ✅ Solo la seleccionada gris
+      }
+    });
+    this.chart.data.datasets[1].borderColor = channels.map(ch => {
+      if (isAllMode) {
+        return this.COLORS.neutral; // ✅ Borde gris para todas
+      } else {
+        return ch === selectedChannel ? this.COLORS.neutral : this.COLORS.borderInactive; // ✅ Borde azul para inactivas
+      }
+    });
+
+    // DATASET NEGATIVO (Rojo)
+    this.chart.data.datasets[2].data = negativeData;
+    this.chart.data.datasets[2].backgroundColor = channels.map(ch => {
+      if (isAllMode) {
+        return this.COLORS.negative; // ✅ Todas las barras con rojo
+      } else {
+        return ch === selectedChannel ? this.COLORS.negative : this.COLORS.transparent; // ✅ Solo la seleccionada rojo
+      }
+    });
+    this.chart.data.datasets[2].borderColor = channels.map(ch => {
+      if (isAllMode) {
+        return this.COLORS.negative; // ✅ Borde rojo para todas
+      } else {
+        return ch === selectedChannel ? this.COLORS.negative : this.COLORS.borderInactive; // ✅ Borde azul para inactivas
+      }
+    });
+
+    // ✅ PASO 3: ACTUALIZAR CON ANIMACIÓN SUAVE
     this.chart.update({
-      duration: 800,  // Power BI style
+      duration: 1200,  // 1.2 segundos
       easing: 'easeInOutQuart'
     });
 
-    console.log('✅ Gráfica actualizada correctamente');
+    console.log('✅ Gráfico actualizado con transiciones suaves (1200ms)');
   }
+
+  // ============================================
+  // 🎯 MÉTODO PARA SELECCIONAR CANAL
+  // ============================================
+  setSelectedChannel(channel) {
+    console.log('🎯 Seleccionando canal en dashboard:', channel);
+    
+    this.selectedChannel = channel;
+    
+    if (!window.channelManager) {
+      console.warn('⚠️ Channel Manager no disponible');
+      return;
+    }
+    
+    const activeChannels = window.channelManager.getActiveChannels();
+    
+    if (activeChannels.length === 0) {
+      console.log('⚠️ No hay canales activos');
+      return;
+    }
+    
+    // ✅ Obtener datos de cada canal
+    const channelDataArray = activeChannels.map(ch => {
+      const cached = window.channelManager.realDataCache[ch];
+      
+      if (cached && cached.sentimentData) {
+        return {
+          channel: ch,
+          positive: cached.sentimentData.positive || 0,
+          neutral: cached.sentimentData.neutral || 0,
+          negative: cached.sentimentData.negative || 0
+        };
+      }
+      
+      return {
+        channel: ch,
+        positive: 0,
+        neutral: 0,
+        negative: 0
+      };
+    });
+
+    const channels = channelDataArray.map(d => d.channel);
+    const positiveData = channelDataArray.map(d => d.positive);
+    const neutralData = channelDataArray.map(d => d.neutral);
+    const negativeData = channelDataArray.map(d => d.negative);
+
+    // ✅ ACTUALIZAR GRÁFICO
+    this.updateNetworksChartWithData(
+      channels,
+      positiveData,
+      neutralData,
+      negativeData,
+      channel
+    );
+  }
+
+  // ============================================
+  // 📊 MÉTODOS PARA KPIs Y EMOCIONES
+  // ============================================
 
   updateKPIs(sentimentData) {
-    this.animateNumber(
-      document.getElementById('kpi-positive'), 
-      sentimentData.positive
-    );
-    this.animateNumber(
-      document.getElementById('kpi-neutral'), 
-      sentimentData.neutral
-    );
-    this.animateNumber(
-      document.getElementById('kpi-negative'), 
-      sentimentData.negative
-    );
-    this.animateNumber(
-      document.getElementById('kpi-score'), 
-      Math.round(sentimentData.score)
-    );
-
-    // ✅ Color GRIS para Neutral
+    this.animateNumber(document.getElementById('kpi-positive'), sentimentData.positive || 0);
+    this.animateNumber(document.getElementById('kpi-neutral'), sentimentData.neutral || 0);
+    this.animateNumber(document.getElementById('kpi-negative'), sentimentData.negative || 0);
+    this.animateNumber(document.getElementById('kpi-score'), sentimentData.score || 0);
+    
+    // Asegurar que neutral tenga color gris
     const neutralKPI = document.getElementById('kpi-neutral');
     if (neutralKPI) {
-      neutralKPI.style.color = this.COLORS.neutral;
+      neutralKPI.style.color = '#9ca3af';
     }
-
-    if (!sentimentData.hasEmotions) {
-      this.updateEmotions();
-    }
-  }
-
-  updateEmotions() {
-    const primaryEmotions = [
-      { emoji: '😊', name: 'Feliz', value: Math.floor(Math.random() * 35) + 30, color: '#fbbf24' },
-      { emoji: '😐', name: 'Neutral', value: Math.floor(Math.random() * 25) + 20, color: this.COLORS.neutral },
-      { emoji: '😠', name: 'Enojado', value: Math.floor(Math.random() * 20) + 10, color: '#ef4444' }
-    ];
-
-    const secondaryEmotions = [
-      { emoji: '🌟', name: 'Optimista', value: Math.floor(Math.random() * 30) + 25, color: '#10b981' },
-      { emoji: '🤝', name: 'Confiado', value: Math.floor(Math.random() * 25) + 20, color: '#06b6d4' },
-      { emoji: '❤️', name: 'Agradecido', value: Math.floor(Math.random() * 25) + 15, color: '#ec4899' }
-    ];
-
-    this.renderEmotions('primary-emotions', primaryEmotions);
-    this.renderEmotions('secondary-emotions', secondaryEmotions);
   }
 
   renderEmotions(containerId, emotions) {
     const container = document.getElementById(containerId);
-    if (!container) return;
-    
-    if (!emotions || emotions.length === 0) {
-      container.innerHTML = `
-        <div style="text-align: center; padding: 1rem; color: #6d9abc; opacity: 0.7;">
-          <p style="font-size: 0.875rem;">Sin datos de emociones</p>
-        </div>
-      `;
-      return;
-    }
-    
-    container.innerHTML = emotions.map(emotion => `
-      <div class="emotion-item">
-        <div class="emotion-emoji">${emotion.emoji}</div>
-        <div class="emotion-info">
-          <div class="emotion-name">
-            <span>${emotion.name}</span>
-            <span class="emotion-value">${emotion.value}%</span>
-          </div>
-          <div class="emotion-bar">
-            <div class="emotion-bar-fill" style="width: 0%; background: ${emotion.color}" data-width="${emotion.value}"></div>
-          </div>
-        </div>
-      </div>
-    `).join('');
+    if (!container || !emotions || emotions.length === 0) return;
 
-    setTimeout(() => {
-      document.querySelectorAll(`#${containerId} .emotion-bar-fill`).forEach(bar => {
-        const width = bar.getAttribute('data-width');
-        bar.style.width = width + '%';
-      });
-    }, 50);
+    // ✅ Limpiar contenedor
+    container.innerHTML = '';
+
+    // ✅ ANIMACIÓN SUAVE PARA EMOCIONES (escalonada)
+    emotions.forEach((emotion, index) => {
+      setTimeout(() => {
+        const emotionItem = document.createElement('div');
+        emotionItem.className = 'emotion-item';
+        emotionItem.style.opacity = '0';
+        emotionItem.style.transform = 'translateY(10px)';
+        emotionItem.style.transition = 'all 800ms cubic-bezier(0.165, 0.84, 0.44, 1)';
+
+        emotionItem.innerHTML = `
+          <div class="emotion-emoji">${emotion.emoji}</div>
+          <div class="emotion-info">
+            <div class="emotion-name">
+              <span>${emotion.name}</span>
+              <span class="emotion-value">${emotion.value}%</span>
+            </div>
+            <div class="emotion-bar">
+              <div class="emotion-bar-fill" 
+                   style="width: 0%; background: ${emotion.color}; transition: width 1200ms cubic-bezier(0.165, 0.84, 0.44, 1);" 
+                   data-width="${emotion.value}">
+              </div>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(emotionItem);
+
+        // Animar entrada
+        setTimeout(() => {
+          emotionItem.style.opacity = '1';
+          emotionItem.style.transform = 'translateY(0)';
+        }, 50);
+
+        // Animar barra
+        setTimeout(() => {
+          const bar = emotionItem.querySelector('.emotion-bar-fill');
+          if (bar) {
+            bar.style.width = emotion.value + '%';
+          }
+        }, 100);
+
+      }, index * 150); // 150ms de delay entre cada emoción
+    });
   }
 
   animateNumber(element, endValue) {
     if (!element) return;
     
     const startValue = parseInt(element.textContent) || 0;
-    const duration = 600;
+    const duration = 1000;
     const startTime = performance.now();
     
     const animate = (currentTime) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       
+      // Easing suave
       const easeProgress = progress < 0.5
         ? 2 * progress * progress
         : 1 - Math.pow(-2 * progress + 2, 2) / 2;
@@ -415,57 +481,8 @@ class Dashboard {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
-  setSelectedChannel(channel) {
-    console.log('🎯 Seleccionando canal:', channel);
-    
-    this.selectedChannel = channel;
-    
-    if (!window.channelManager) return;
-    
-    const activeChannels = window.channelManager.getActiveChannels();
-    
-    if (activeChannels.length === 0) {
-      console.log('⚠️ No hay canales activos');
-      return;
-    }
-    
-    // ✅ Obtener datos reales o simulados
-    const channelDataArray = activeChannels.map(ch => {
-      const cached = window.channelManager.realDataCache[ch];
-      
-      if (cached && cached.sentimentData) {
-        return {
-          channel: ch,
-          positive: cached.sentimentData.positive,
-          neutral: cached.sentimentData.neutral,
-          negative: cached.sentimentData.negative
-        };
-      }
-      
-      return {
-        channel: ch,
-        positive: Math.floor(Math.random() * 40) + 40,
-        neutral: Math.floor(Math.random() * 20) + 20,
-        negative: Math.floor(Math.random() * 20) + 10
-      };
-    });
-
-    const channels = channelDataArray.map(d => d.channel);
-    const positiveData = channelDataArray.map(d => d.positive);
-    const neutralData = channelDataArray.map(d => d.neutral);
-    const negativeData = channelDataArray.map(d => d.negative);
-
-    // ✅ Actualizar con el canal seleccionado
-    this.updateNetworksChartWithData(
-      channels,
-      positiveData,
-      neutralData,
-      negativeData,
-      channel
-    );
-  }
-
   startAutoUpdate() {
+    // Actualización cada 30 segundos
     setInterval(() => {
       if (this.selectedChannel && window.channelManager) {
         window.channelManager.loadRealDataForChannel(this.selectedChannel);
@@ -521,42 +538,17 @@ function displayEmotions(containerId, emotions) {
   const container = document.getElementById(containerId);
   if (!container || !emotions) return;
   
-  container.innerHTML = '';
-  
   const sortedEmotions = Object.entries(emotions)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
+    .slice(0, 3)
+    .map(([emotion, value]) => ({
+      emoji: window.dashboard.getEmotionEmoji(emotion),
+      name: window.dashboard.capitalizeFirst(emotion),
+      value: Math.round(value),
+      color: window.dashboard.getEmotionColor(emotion)
+    }));
   
-  sortedEmotions.forEach(([emotion, value], index) => {
-    const emotionItem = document.createElement('div');
-    emotionItem.className = 'emotion-item';
-    emotionItem.style.animationDelay = (index * 0.1) + 's';
-    
-    const emoji = window.dashboard.getEmotionEmoji(emotion);
-    const color = window.dashboard.getEmotionColor(emotion);
-    
-    emotionItem.innerHTML = `
-      <div class="emotion-emoji">${emoji}</div>
-      <div class="emotion-info">
-        <div class="emotion-name">
-          <span>${window.dashboard.capitalizeFirst(emotion)}</span>
-          <span class="emotion-value">${Math.round(value)}%</span>
-        </div>
-        <div class="emotion-bar">
-          <div class="emotion-bar-fill" style="width: 0%; background: ${color}" data-width="${value}"></div>
-        </div>
-      </div>
-    `;
-    
-    container.appendChild(emotionItem);
-  });
-  
-  setTimeout(() => {
-    document.querySelectorAll(`#${containerId} .emotion-bar-fill`).forEach(bar => {
-      const width = bar.getAttribute('data-width');
-      bar.style.width = width + '%';
-    });
-  }, 50);
+  window.dashboard.renderEmotions(containerId, sortedEmotions);
 }
 
 function clearAnalysisResults() {
@@ -581,4 +573,7 @@ window.dashboard = new Dashboard();
 window.displayAnalysisResults = displayAnalysisResults;
 window.clearAnalysisResults = clearAnalysisResults;
 
-console.log('✅ Dashboard v4.1 - POWER BI STYLE ANIMATIONS ---');
+console.log('✅ Dashboard v5.0 - LÓGICA REINICIADA - POWER BI STYLE');
+console.log('📊 Gráfico reducido a la mitad (250px)');
+console.log('🎨 Transiciones suaves: 1200ms');
+console.log('🔄 Actualización en tiempo real activa');
