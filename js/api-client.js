@@ -8,7 +8,7 @@ class SentimentAPI {
   constructor() {
     // Configuración de la API
     this.SUPABASE_URL = 'https://lztfdemrqebqfjxjyksw.supabase.co';
-    this.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dGZkZW1ycWVicWZqeGp5a3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk0ODQ2MjMsImV4cCI6MjA0NTA2MDYyM30.IdhVWbJXSQbCUFHZgLlQpR0TcmOI5FqDMiZWVoCr2E8';
+    this.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dGZkZW1ycWVicWZqeGp5a3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3OTc4OTAsImV4cCI6MjA3NjM3Mzg5MH0.Hoy-G8-ob2a70lBtGbo0f-MBLYi0iOS2ltohqgh8PpU';
     this.API_BASE_URL = `${this.SUPABASE_URL}/functions/v1`;
     
     // Headers por defecto
