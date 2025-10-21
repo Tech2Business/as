@@ -205,64 +205,90 @@ class ChannelManager {
     }
   }
 
-  async loadAllChannelsData() {
-    try {
-      const response = await window.sentimentAPI.getHistory({
-        limit: 500,
-        include_stats: true
-      });
+ async loadAllChannelsData() {
+  try {
+    const response = await window.sentimentAPI.getHistory({
+      limit: 500,
+      include_stats: true
+    });
 
-      if (response.success && response.statistics) {
-        this.processAllChannelsData(response);
-      } else {
-        this.generateSimulatedAllChannelsData();
-      }
-    } catch (error) {
-      console.error('❌ Error:', error);
+    if (response.success && response.statistics) {
+      this.processAllChannelsData(response);
+    } else {
       this.generateSimulatedAllChannelsData();
     }
+  } catch (error) {
+    console.error('❌ Error:', error);
+    this.generateSimulatedAllChannelsData();
+  }
+}
+
+generateSimulatedAllChannelsData() {
+  const activeChannels = this.getActiveChannels();
+  
+  if (activeChannels.length === 0) {
+    this.showEmptyState();
+    return;
   }
 
-  generateSimulatedAllChannelsData() {
-    const activeChannels = this.getActiveChannels();
-    
-    if (activeChannels.length === 0) {
-      this.showEmptyState();
-      return;
+  // ✅ PASO 1: Generar datos para cada canal
+  activeChannels.forEach(channel => {
+    this.generateSimulatedData(channel);
+  });
+
+  // ✅ PASO 2: Agregar sentimientos de todos los canales
+  let totalPositive = 0, totalNeutral = 0, totalNegative = 0, totalCount = 0;
+  
+  activeChannels.forEach(channel => {
+    const cached = this.realDataCache[channel];
+    if (cached && cached.sentimentData) {
+      totalPositive += cached.sentimentData.positiveCount || 0;
+      totalNeutral += cached.sentimentData.neutralCount || 0;
+      totalNegative += cached.sentimentData.negativeCount || 0;
+      totalCount += cached.sentimentData.total || 0;
     }
+  });
 
-    activeChannels.forEach(channel => {
-      this.generateSimulatedData(channel);
-    });
+  const sentimentData = {
+    positive: totalCount > 0 ? Math.round((totalPositive / totalCount) * 100) : 0,
+    neutral: totalCount > 0 ? Math.round((totalNeutral / totalCount) * 100) : 0,
+    negative: totalCount > 0 ? Math.round((totalNegative / totalCount) * 100) : 0,
+    score: totalCount > 0 ? Math.round(((totalPositive - totalNegative) / totalCount) * 100) : 0
+  };
 
-    let totalPositive = 0, totalNeutral = 0, totalNegative = 0, totalCount = 0;
-    
-    activeChannels.forEach(channel => {
-      const cached = this.realDataCache[channel];
-      if (cached && cached.sentimentData) {
-        totalPositive += cached.sentimentData.positiveCount || 0;
-        totalNeutral += cached.sentimentData.neutralCount || 0;
-        totalNegative += cached.sentimentData.negativeCount || 0;
-        totalCount += cached.sentimentData.total || 0;
-      }
-    });
-
-    const sentimentData = {
-      positive: totalCount > 0 ? Math.round((totalPositive / totalCount) * 100) : 0,
-      neutral: totalCount > 0 ? Math.round((totalNeutral / totalCount) * 100) : 0,
-      negative: totalCount > 0 ? Math.round((totalNegative / totalCount) * 100) : 0,
-      score: totalCount > 0 ? Math.round(((totalPositive - totalNegative) / totalCount) * 100) : 0
-    };
-
-    document.getElementById('empty-state').style.display = 'none';
-    document.getElementById('results-container').classList.add('active');
-
-    if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
-      window.dashboard.updateKPIs(sentimentData);
+  // ✅ PASO 3: AGREGAR EMOCIONES DE TODOS LOS CANALES
+  const aggregatedEmotions = {};
+  
+  activeChannels.forEach(channel => {
+    const cached = this.realDataCache[channel];
+    if (cached && cached.emotions) {
+      Object.entries(cached.emotions).forEach(([emotion, value]) => {
+        if (!aggregatedEmotions[emotion]) {
+          aggregatedEmotions[emotion] = 0;
+        }
+        aggregatedEmotions[emotion] += value;
+      });
     }
+  });
 
-    this.updateChartWithAllChannels(activeChannels);
+  // Calcular promedio de emociones
+  const numChannels = activeChannels.length;
+  Object.keys(aggregatedEmotions).forEach(emotion => {
+    aggregatedEmotions[emotion] = Math.round(aggregatedEmotions[emotion] / numChannels);
+  });
+
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('results-container').classList.add('active');
+
+  if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
+    window.dashboard.updateKPIs(sentimentData);
   }
+
+  this.updateChartWithAllChannels(activeChannels);
+  
+  // ✅ ACTUALIZAR EMOCIONES CON DATOS AGREGADOS
+  this.updateEmotionsWithSimulatedData(aggregatedEmotions);
+}
 
   processRealData(channel, response) {
     const data = response.data || [];
@@ -1100,35 +1126,44 @@ class ChannelManager {
   }
 
   async confirmDelete() {
-    const reason = document.getElementById('delete-reason').value.trim();
+  const reason = document.getElementById('delete-reason').value.trim();
 
-    if (!reason) {
-      alert('Por favor indica el motivo de la eliminación');
-      return;
-    }
-
-    if (this.deleteConfigId && !this.deleteConfigId.toString().startsWith('local_')) {
-      await this.deleteFromDatabase(this.deleteConfigId);
-    }
-
-    this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
-    
-    this.saveToStorage();
-    
-    this.closeDeleteModal();
-
-    if (this.deleteItemChannel === 'email' || this.deleteItemChannel === 'whatsapp') {
-      this.renderMonitoredList();
-    } else {
-      this.renderSocialConfig();
-    }
-    
-    await this.loadRealDataForChannel(this.currentChannel);
-    
-    if (window.showNotification) {
-      window.showNotification('Elemento eliminado correctamente', 'success');
-    }
+  if (!reason) {
+    alert('Por favor indica el motivo de la eliminación');
+    return;
   }
+
+  // Soft delete en DB
+  if (this.deleteConfigId && !this.deleteConfigId.toString().startsWith('local_')) {
+    await this.deleteFromDatabase(this.deleteConfigId);
+  }
+
+  // Eliminar del array
+  this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
+  
+  this.saveToStorage();
+  
+  this.closeDeleteModal();
+
+  // ✅ FORZAR ACTUALIZACIÓN DE UI
+  if (this.deleteItemChannel === 'email' || this.deleteItemChannel === 'whatsapp') {
+    this.renderMonitoredList();
+  } else {
+    this.renderSocialConfig();
+  }
+  
+  // ✅ RECARGAR DATOS Y ACTUALIZAR GRÁFICA
+  await this.loadRealDataForChannel(this.currentChannel);
+  
+  // ✅ ACTUALIZAR DASHBOARD
+  if (window.dashboard && typeof window.dashboard.setSelectedChannel === 'function') {
+    window.dashboard.setSelectedChannel(this.currentChannel);
+  }
+  
+  if (window.showNotification) {
+    window.showNotification('Elemento eliminado correctamente', 'success');
+  }
+}
 
   saveToStorage() {
     try {
