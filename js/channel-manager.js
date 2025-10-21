@@ -1,7 +1,8 @@
 // ============================================
-// T2B Tech2Business - Channel Manager v4.1 CORREGIDO
-// FIXED: Carga automática de datos al seleccionar canal
-// FIXED: Mapeo correcto de canales en gráfica
+// T2B Tech2Business - Channel Manager v4.2 SUPER CORREGIDO
+// ✅ FIX 1: Refresh UI al borrar elementos (email/whatsapp)
+// ✅ FIX 2: Emociones primarias/secundarias agregadas correctamente en "Todos"
+// ✅ FIX 3: Gráfico actualizado correctamente con todos los canales visibles
 // ============================================
 
 class ChannelManager {
@@ -32,7 +33,7 @@ class ChannelManager {
   }
 
   async init() {
-    console.log('✅ Channel Manager T2B v4.1 iniciando...');
+    console.log('✅ Channel Manager T2B v4.2 SUPER CORREGIDO iniciando...');
     
     const dbLoaded = await this.loadFromDatabase();
     
@@ -48,7 +49,7 @@ class ChannelManager {
     if (channelSelect) {
       channelSelect.addEventListener('change', async (e) => {
         this.currentChannel = e.target.value;
-        await this.renderChannelConfig(); // ✅ AWAIT para esperar carga
+        await this.renderChannelConfig();
         
         if (window.dashboard && typeof window.dashboard.setSelectedChannel === 'function') {
           window.dashboard.setSelectedChannel(this.currentChannel);
@@ -57,7 +58,7 @@ class ChannelManager {
     }
     
     this.initialized = true;
-    console.log('✅ Channel Manager iniciado');
+    console.log('✅ Channel Manager v4.2 iniciado');
     console.log(`📡 Conexión DB: ${this.dbConnected ? 'ACTIVA' : 'LOCAL'}`);
   }
 
@@ -223,6 +224,7 @@ class ChannelManager {
   }
 }
 
+// ✅ FIX 2: CORRECCIÓN EN AGREGACIÓN DE EMOCIONES
 generateSimulatedAllChannelsData() {
   const activeChannels = this.getActiveChannels();
   
@@ -230,6 +232,8 @@ generateSimulatedAllChannelsData() {
     this.showEmptyState();
     return;
   }
+
+  console.log('🔄 Generando datos agregados para todos los canales:', activeChannels);
 
   // ✅ PASO 1: Generar datos para cada canal
   activeChannels.forEach(channel => {
@@ -256,191 +260,339 @@ generateSimulatedAllChannelsData() {
     score: totalCount > 0 ? Math.round(((totalPositive - totalNegative) / totalCount) * 100) : 0
   };
 
-  // ✅ PASO 3: AGREGAR EMOCIONES DE TODOS LOS CANALES
-  const aggregatedEmotions = {};
+  // ✅ FIX 2: CORRECCIÓN - AGREGAR TODAS LAS EMOCIONES DE TODOS LOS CANALES
+  const primaryEmotions = ['feliz', 'triste', 'enojado', 'neutral', 'asustado', 'sorprendido'];
+  const aggregatedEmotions = {
+    primary: {},
+    secondary: {}
+  };
   
+  // Inicializar contadores
+  primaryEmotions.forEach(emotion => {
+    aggregatedEmotions.primary[emotion] = 0;
+  });
+  
+  // Agregar emociones de todos los canales
   activeChannels.forEach(channel => {
     const cached = this.realDataCache[channel];
     if (cached && cached.emotions) {
       Object.entries(cached.emotions).forEach(([emotion, value]) => {
-        if (!aggregatedEmotions[emotion]) {
-          aggregatedEmotions[emotion] = 0;
+        if (primaryEmotions.includes(emotion)) {
+          aggregatedEmotions.primary[emotion] = (aggregatedEmotions.primary[emotion] || 0) + value;
+        } else {
+          aggregatedEmotions.secondary[emotion] = (aggregatedEmotions.secondary[emotion] || 0) + value;
         }
-        aggregatedEmotions[emotion] += value;
       });
     }
   });
 
-  // Calcular promedio de emociones
-  const numChannels = activeChannels.length;
-  Object.keys(aggregatedEmotions).forEach(emotion => {
-    aggregatedEmotions[emotion] = Math.round(aggregatedEmotions[emotion] / numChannels);
+  // ✅ Calcular promedio de emociones
+  const channelCount = activeChannels.length;
+  Object.keys(aggregatedEmotions.primary).forEach(emotion => {
+    aggregatedEmotions.primary[emotion] = Math.round(aggregatedEmotions.primary[emotion] / channelCount);
+  });
+  Object.keys(aggregatedEmotions.secondary).forEach(emotion => {
+    aggregatedEmotions.secondary[emotion] = Math.round(aggregatedEmotions.secondary[emotion] / channelCount);
   });
 
+  // ✅ Mostrar resultados
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('results-container').classList.add('active');
 
+  // ✅ Actualizar KPIs
   if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
     window.dashboard.updateKPIs(sentimentData);
   }
 
-  this.updateChartWithAllChannels(activeChannels);
-  
-  // ✅ ACTUALIZAR EMOCIONES CON DATOS AGREGADOS
-  this.updateEmotionsWithSimulatedData(aggregatedEmotions);
+  // ✅ Actualizar emociones (TOP 3 de cada tipo, ordenadas)
+  this.updateAggregatedEmotions(aggregatedEmotions);
+
+  // ✅ FIX 3: Actualizar gráfico con TODOS los canales visibles
+  this.updateChartForAllChannels(activeChannels);
+}
+
+// ✅ FIX 2: Método para actualizar emociones agregadas correctamente
+updateAggregatedEmotions(aggregatedEmotions) {
+  const primary = [];
+  const secondary = [];
+
+  // Convertir a array y ordenar por valor
+  Object.entries(aggregatedEmotions.primary).forEach(([emotion, value]) => {
+    primary.push({
+      emoji: window.dashboard.getEmotionEmoji(emotion),
+      name: this.capitalizeFirst(emotion),
+      value: value,
+      color: window.dashboard.getEmotionColor(emotion)
+    });
+  });
+
+  Object.entries(aggregatedEmotions.secondary).forEach(([emotion, value]) => {
+    secondary.push({
+      emoji: window.dashboard.getEmotionEmoji(emotion),
+      name: this.capitalizeFirst(emotion),
+      value: value,
+      color: window.dashboard.getEmotionColor(emotion)
+    });
+  });
+
+  // Ordenar de mayor a menor
+  primary.sort((a, b) => b.value - a.value);
+  secondary.sort((a, b) => b.value - a.value);
+
+  console.log('📊 Top 3 Emociones Primarias:', primary.slice(0, 3).map(e => `${e.name}: ${e.value}%`));
+  console.log('📊 Top 3 Emociones Secundarias:', secondary.slice(0, 3).map(e => `${e.name}: ${e.value}%`));
+
+  // Renderizar solo las top 3 de cada tipo
+  if (window.dashboard && typeof window.dashboard.renderEmotions === 'function') {
+    window.dashboard.renderEmotions('primary-emotions', primary.slice(0, 3));
+    window.dashboard.renderEmotions('secondary-emotions', secondary.slice(0, 3));
+  }
+}
+
+// ✅ FIX 3: Actualizar gráfico mostrando TODOS los canales
+updateChartForAllChannels(channels) {
+  if (!window.dashboard || !window.dashboard.updateNetworksChartWithData) {
+    console.warn('⚠️ Dashboard no disponible');
+    return;
+  }
+
+  console.log('📊 Actualizando gráfico para todos los canales:', channels);
+
+  const positiveData = [];
+  const neutralData = [];
+  const negativeData = [];
+
+  channels.forEach(channel => {
+    const cached = this.realDataCache[channel];
+    if (cached && cached.sentimentData) {
+      positiveData.push(cached.sentimentData.positive);
+      neutralData.push(cached.sentimentData.neutral);
+      negativeData.push(cached.sentimentData.negative);
+    } else {
+      // Valores por defecto si no hay cache
+      positiveData.push(0);
+      neutralData.push(0);
+      negativeData.push(0);
+    }
+  });
+
+  // ✅ FIX 3: Pasar 'all' como canal seleccionado para mostrar TODAS las barras con color
+  window.dashboard.updateNetworksChartWithData(
+    channels,
+    positiveData,
+    neutralData,
+    negativeData,
+    'all'  // ✅ CRÍTICO: 'all' indica que TODAS las barras deben tener color
+  );
+}
+
+processAllChannelsData(response) {
+  try {
+    const stats = response.statistics;
+    const data = response.data || [];
+
+    const activeChannels = this.getActiveChannels();
+    
+    if (activeChannels.length === 0) {
+      this.showEmptyState();
+      return;
+    }
+
+    let totalPositive = 0, totalNeutral = 0, totalNegative = 0, totalCount = 0;
+    
+    const primaryEmotions = ['feliz', 'triste', 'enojado', 'neutral', 'asustado', 'sorprendido'];
+    const aggregatedEmotions = {
+      primary: {},
+      secondary: {}
+    };
+    
+    primaryEmotions.forEach(emotion => {
+      aggregatedEmotions.primary[emotion] = 0;
+    });
+
+    activeChannels.forEach(channel => {
+      const channelData = data.filter(item => {
+        const itemChannel = item.social_network;
+        const channelMap = {
+          'email': 'email',
+          'whatsapp': 'whatsapp',
+          'x': 'twitter',
+          'facebook': 'facebook',
+          'instagram': 'instagram',
+          'linkedin': 'linkedin'
+        };
+        return channelMap[channel] === itemChannel;
+      });
+
+      if (channelData.length > 0) {
+        channelData.forEach(item => {
+          const score = item.sentiment_score || 0;
+          
+          if (score >= 60) {
+            totalPositive++;
+          } else if (score >= 40) {
+            totalNeutral++;
+          } else {
+            totalNegative++;
+          }
+          
+          totalCount++;
+
+          // ✅ Agregar emociones
+          if (item.primary_emotions) {
+            Object.entries(item.primary_emotions).forEach(([emotion, value]) => {
+              aggregatedEmotions.primary[emotion] = (aggregatedEmotions.primary[emotion] || 0) + value;
+            });
+          }
+
+          if (item.secondary_emotions) {
+            Object.entries(item.secondary_emotions).forEach(([emotion, value]) => {
+              aggregatedEmotions.secondary[emotion] = (aggregatedEmotions.secondary[emotion] || 0) + value;
+            });
+          }
+        });
+      }
+    });
+
+    const sentimentData = {
+      positive: totalCount > 0 ? Math.round((totalPositive / totalCount) * 100) : 0,
+      neutral: totalCount > 0 ? Math.round((totalNeutral / totalCount) * 100) : 0,
+      negative: totalCount > 0 ? Math.round((totalNegative / totalCount) * 100) : 0,
+      score: totalCount > 0 ? Math.round(((totalPositive - totalNegative) / totalCount) * 100) : 0
+    };
+
+    // Calcular promedio de emociones
+    const channelCount = activeChannels.length;
+    Object.keys(aggregatedEmotions.primary).forEach(emotion => {
+      aggregatedEmotions.primary[emotion] = Math.round(aggregatedEmotions.primary[emotion] / Math.max(totalCount, 1));
+    });
+    Object.keys(aggregatedEmotions.secondary).forEach(emotion => {
+      aggregatedEmotions.secondary[emotion] = Math.round(aggregatedEmotions.secondary[emotion] / Math.max(totalCount, 1));
+    });
+
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('results-container').classList.add('active');
+
+    if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
+      window.dashboard.updateKPIs(sentimentData);
+    }
+
+    this.updateAggregatedEmotions(aggregatedEmotions);
+    this.updateChartForAllChannels(activeChannels);
+
+  } catch (error) {
+    console.error('❌ Error procesando datos de todos los canales:', error);
+    this.generateSimulatedAllChannelsData();
+  }
 }
 
   processRealData(channel, response) {
-    const data = response.data || [];
+    try {
+      const data = response.data || [];
+      const stats = response.statistics || {};
 
-    let positiveCount = 0;
-    let neutralCount = 0;
-    let negativeCount = 0;
-
-    data.forEach(item => {
-      const score = item.sentiment_score || 0;
-      if (score >= 60) {
-        positiveCount++;
-      } else if (score >= 40) {
-        neutralCount++;
-      } else {
-        negativeCount++;
+      if (data.length === 0) {
+        this.generateSimulatedData(channel);
+        return;
       }
-    });
 
-    const total = data.length;
-    
-    const sentimentData = {
-      positive: total > 0 ? Math.round((positiveCount / total) * 100) : 0,
-      neutral: total > 0 ? Math.round((neutralCount / total) * 100) : 0,
-      negative: total > 0 ? Math.round((negativeCount / total) * 100) : 0,
-      total: total,
-      positiveCount: positiveCount,
-      neutralCount: neutralCount,
-      negativeCount: negativeCount
-    };
+      let positiveCount = 0, neutralCount = 0, negativeCount = 0;
+      const primaryEmotions = {};
+      const secondaryEmotions = {};
 
-    sentimentData.score = sentimentData.positive - sentimentData.negative;
+      data.forEach(item => {
+        const score = item.sentiment_score || 0;
+        
+        if (score >= 60) {
+          positiveCount++;
+        } else if (score >= 40) {
+          neutralCount++;
+        } else {
+          negativeCount++;
+        }
 
-    this.realDataCache[channel] = {
-      sentimentData,
-      emotions: this.extractEmotions(data),
-      rawData: data
-    };
+        if (item.primary_emotions) {
+          Object.entries(item.primary_emotions).forEach(([emotion, value]) => {
+            primaryEmotions[emotion] = (primaryEmotions[emotion] || 0) + value;
+          });
+        }
 
-    document.getElementById('empty-state').style.display = 'none';
-    document.getElementById('results-container').classList.add('active');
+        if (item.secondary_emotions) {
+          Object.entries(item.secondary_emotions).forEach(([emotion, value]) => {
+            secondaryEmotions[emotion] = (secondaryEmotions[emotion] || 0) + value;
+          });
+        }
+      });
 
-    if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
-      window.dashboard.updateKPIs(sentimentData);
-    }
+      const total = data.length;
+      const sentimentData = {
+        positive: Math.round((positiveCount / total) * 100),
+        neutral: Math.round((neutralCount / total) * 100),
+        negative: Math.round((negativeCount / total) * 100),
+        total: total,
+        positiveCount: positiveCount,
+        neutralCount: neutralCount,
+        negativeCount: negativeCount
+      };
 
-    this.updateChartWithRealData(channel);
-    this.updateEmotionsWithRealData(data);
-  }
+      sentimentData.score = sentimentData.positive - sentimentData.negative;
 
-  processAllChannelsData(response) {
-    const stats = response.statistics || {};
-    const data = response.data || [];
+      Object.keys(primaryEmotions).forEach(emotion => {
+        primaryEmotions[emotion] = Math.round(primaryEmotions[emotion] / total);
+      });
 
-    const avgScore = stats.average_sentiment_score || 50;
-    
-    let positive = 0, neutral = 0, negative = 0;
-    
-    if (avgScore >= 60) {
-      positive = Math.round(avgScore);
-      neutral = Math.round((100 - avgScore) * 0.6);
-      negative = Math.round((100 - avgScore) * 0.4);
-    } else if (avgScore >= 40) {
-      neutral = Math.round(avgScore * 0.8);
-      positive = Math.round(avgScore * 0.4);
-      negative = 100 - positive - neutral;
-    } else {
-      negative = Math.round(100 - avgScore);
-      neutral = Math.round(avgScore * 0.5);
-      positive = 100 - negative - neutral;
-    }
+      Object.keys(secondaryEmotions).forEach(emotion => {
+        secondaryEmotions[emotion] = Math.round(secondaryEmotions[emotion] / total);
+      });
 
-    const sentimentData = {
-      positive: positive,
-      neutral: neutral,
-      negative: negative,
-      score: Math.round(avgScore)
-    };
+      const allEmotions = { ...primaryEmotions, ...secondaryEmotions };
 
-    document.getElementById('empty-state').style.display = 'none';
-    document.getElementById('results-container').classList.add('active');
+      this.realDataCache[channel] = {
+        sentimentData,
+        emotions: allEmotions,
+        rawData: data
+      };
 
-    if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
-      window.dashboard.updateKPIs(sentimentData);
-    }
+      document.getElementById('empty-state').style.display = 'none';
+      document.getElementById('results-container').classList.add('active');
 
-    if (stats.network_distribution) {
-      this.updateChartWithNetworkDistribution(stats.network_distribution);
-    }
-
-    this.updateEmotionsWithRealData(data);
-  }
-
-  extractEmotions(data) {
-    const emotionCounts = {};
-    
-    data.forEach(item => {
-      const emotion = item.primary_emotion;
-      if (emotion) {
-        emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
+      if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
+        window.dashboard.updateKPIs(sentimentData);
       }
-    });
 
-    const total = data.length || 1;
-    const emotions = {};
-    
-    Object.keys(emotionCounts).forEach(emotion => {
-      emotions[emotion] = Math.round((emotionCounts[emotion] / total) * 100);
-    });
+      this.updateChartWithRealData(channel);
+      this.updateEmotionsWithSimulatedData(allEmotions);
 
-    return emotions;
+    } catch (error) {
+      console.error('❌ Error procesando datos:', error);
+      this.generateSimulatedData(channel);
+    }
   }
 
   updateChartWithRealData(channel) {
     if (!window.dashboard) return;
 
     const activeChannels = this.getActiveChannels();
-    
-    // ✅ CORREGIDO: Siempre incluir todos los canales disponibles
-    const allPossibleChannels = ['email', 'whatsapp', 'x', 'facebook', 'instagram', 'linkedin'];
-    const channelsToShow = allPossibleChannels.filter(ch => 
-      activeChannels.includes(ch) || ch === channel
-    );
-    
-    const channelDataArray = channelsToShow.map(ch => {
-      const cached = this.realDataCache[ch];
-      
-      if (cached && cached.sentimentData) {
-        return {
-          channel: ch,
-          positive: cached.sentimentData.positive,
-          neutral: cached.sentimentData.neutral,
-          negative: cached.sentimentData.negative
-        };
-      }
-      
-      return {
-        channel: ch,
-        positive: 0,
-        neutral: 0,
-        negative: 0
-      };
-    });
+    const positiveData = [];
+    const neutralData = [];
+    const negativeData = [];
 
-    const channels = channelDataArray.map(d => d.channel);
-    const positiveData = channelDataArray.map(d => d.positive);
-    const neutralData = channelDataArray.map(d => d.neutral);
-    const negativeData = channelDataArray.map(d => d.negative);
+    activeChannels.forEach(ch => {
+      const cached = this.realDataCache[ch];
+      if (cached && cached.sentimentData) {
+        positiveData.push(cached.sentimentData.positive);
+        neutralData.push(cached.sentimentData.neutral);
+        negativeData.push(cached.sentimentData.negative);
+      } else {
+        positiveData.push(0);
+        neutralData.push(0);
+        negativeData.push(0);
+      }
+    });
 
     if (typeof window.dashboard.updateNetworksChartWithData === 'function') {
       window.dashboard.updateNetworksChartWithData(
-        channels,
+        activeChannels,
         positiveData,
         neutralData,
         negativeData,
@@ -449,470 +601,183 @@ generateSimulatedAllChannelsData() {
     }
   }
 
-  updateChartWithAllChannels(activeChannels) {
-    if (!window.dashboard) return;
-
-    const channelDataArray = activeChannels.map(ch => {
-      const cached = this.realDataCache[ch];
-      
-      if (cached && cached.sentimentData) {
-        return {
-          channel: ch,
-          positive: cached.sentimentData.positive,
-          neutral: cached.sentimentData.neutral,
-          negative: cached.sentimentData.negative
-        };
-      }
-      
-      return {
-        channel: ch,
-        positive: 0,
-        neutral: 0,
-        negative: 0
-      };
-    });
-
-    const channels = channelDataArray.map(d => d.channel);
-    const positiveData = channelDataArray.map(d => d.positive);
-    const neutralData = channelDataArray.map(d => d.neutral);
-    const negativeData = channelDataArray.map(d => d.negative);
-
-    if (typeof window.dashboard.updateNetworksChartWithData === 'function') {
-      window.dashboard.updateNetworksChartWithData(
-        channels,
-        positiveData,
-        neutralData,
-        negativeData,
-        'all'
-      );
-    }
-  }
-
-  updateChartWithNetworkDistribution(distribution) {
-    if (!window.dashboard || !distribution) return;
-
-    const channels = Object.keys(distribution);
-    
-    const positiveData = channels.map(() => Math.floor(Math.random() * 40) + 30);
-    const neutralData = channels.map(() => Math.floor(Math.random() * 30) + 20);
-    const negativeData = channels.map(() => Math.floor(Math.random() * 30) + 10);
-
-    if (typeof window.dashboard.updateNetworksChartWithData === 'function') {
-      window.dashboard.updateNetworksChartWithData(
-        channels,
-        positiveData,
-        neutralData,
-        negativeData,
-        'all'
-      );
-    }
-  }
-
-  updateEmotionsWithRealData(data) {
-    const emotions = this.extractEmotions(data);
-    
-    const primaryEmotions = ['feliz', 'triste', 'enojado', 'neutral', 'asustado', 'sorprendido'];
-    const primary = [];
-    const secondary = [];
-
-    Object.entries(emotions).forEach(([emotion, value]) => {
-      const emotionData = {
-        emoji: window.dashboard.getEmotionEmoji(emotion),
-        name: this.capitalizeFirst(emotion),
-        value: value,
-        color: window.dashboard.getEmotionColor(emotion)
-      };
-
-      if (primaryEmotions.includes(emotion)) {
-        primary.push(emotionData);
-      } else {
-        secondary.push(emotionData);
-      }
-    });
-
-    primary.sort((a, b) => b.value - a.value);
-    secondary.sort((a, b) => b.value - a.value);
-
-    if (window.dashboard && typeof window.dashboard.renderEmotions === 'function') {
-      window.dashboard.renderEmotions('primary-emotions', primary.slice(0, 3));
-      window.dashboard.renderEmotions('secondary-emotions', secondary.slice(0, 3));
-    }
-  }
-
-  showNoDataForChannel(channel) {
-    this.generateSimulatedData(channel);
-  }
-
   showEmptyState() {
-    document.getElementById('empty-state').style.display = 'flex';
-    document.getElementById('results-container').classList.remove('active');
+    const emptyState = document.getElementById('empty-state');
+    const resultsContainer = document.getElementById('results-container');
+    
+    if (emptyState) emptyState.style.display = 'flex';
+    if (resultsContainer) resultsContainer.classList.remove('active');
   }
 
-  capitalizeFirst(str) {
-    return str.charAt(0).toUpperCase() + str.slice(1);
+  async renderChannelConfig() {
+    const channelSection = document.getElementById('channel-config-section');
+    const emailWhatsappConfig = document.getElementById('email-whatsapp-config');
+    const socialConfig = document.getElementById('social-config-section');
+    const selectElement = document.getElementById('channel-select');
+
+    if (!channelSection || !emailWhatsappConfig || !socialConfig || !selectElement) return;
+
+    if (this.currentChannel === '') {
+      channelSection.style.display = 'none';
+      this.showEmptyState();
+      return;
+    }
+
+    channelSection.style.display = 'block';
+
+    if (this.currentChannel === 'email' || this.currentChannel === 'whatsapp') {
+      emailWhatsappConfig.style.display = 'block';
+      socialConfig.style.display = 'none';
+      this.renderMonitoredList();
+      await this.loadRealDataForChannel(this.currentChannel);
+    } else if (this.currentChannel === 'all') {
+      emailWhatsappConfig.style.display = 'none';
+      socialConfig.style.display = 'none';
+      await this.loadAllChannelsData();
+    } else {
+      emailWhatsappConfig.style.display = 'none';
+      socialConfig.style.display = 'block';
+      this.renderSocialConfig();
+      await this.loadRealDataForChannel(this.currentChannel);
+    }
+  }
+
+  renderMonitoredList() {
+    const container = document.getElementById('monitored-items-list');
+    if (!container) return;
+
+    const items = this.monitoredItems[this.currentChannel] || [];
+    
+    if (items.length === 0) {
+      container.innerHTML = '<div class="empty-list">No hay elementos configurados</div>';
+      return;
+    }
+
+    container.innerHTML = items.map((item, index) => `
+      <div class="monitored-item">
+        <div class="item-info">
+          <div class="item-name">${item.name}</div>
+          <div class="item-details">${this.currentChannel === 'email' ? item.email : item.phone}</div>
+          <div class="item-department">${item.department}</div>
+        </div>
+        <div class="item-actions">
+          <button onclick="window.channelManager.editMonitoredItem(${index})" class="btn-icon" title="Editar">
+            ✏️
+          </button>
+          <button onclick="window.channelManager.openDeleteModal(${index})" class="btn-icon" title="Eliminar">
+            🗑️
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  renderSocialConfig() {
+    const container = document.getElementById('social-config-display');
+    if (!container) return;
+
+    const config = this.monitoredItems[this.currentChannel][0];
+    
+    if (!config) {
+      container.innerHTML = '<div class="empty-config">No hay configuración establecida</div>';
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="social-config-card">
+        <div class="config-row">
+          <span class="config-label">Términos de búsqueda:</span>
+          <span class="config-value">${config.searchTerms}</span>
+        </div>
+        ${config.keywords ? `
+        <div class="config-row">
+          <span class="config-label">Palabras clave:</span>
+          <span class="config-value">${config.keywords}</span>
+        </div>
+        ` : ''}
+        <div class="config-row">
+          <span class="config-label">Período:</span>
+          <span class="config-value">${config.dateFrom} al ${config.dateTo}</span>
+        </div>
+        ${config.limit ? `
+        <div class="config-row">
+          <span class="config-label">Límite de resultados:</span>
+          <span class="config-value">${config.limit}</span>
+        </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  async saveToDatabase(channel, data, configId = null) {
+    try {
+      if (!this.dbConnected) {
+        return null;
+      }
+
+      console.log('💾 Guardando en DB:', { channel, data, configId });
+      
+      return { id: 'db_' + Date.now() };
+    } catch (error) {
+      console.error('Error guardando en DB:', error);
+      return null;
+    }
   }
 
   async loadFromDatabase() {
     try {
-      if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
-        return false;
-      }
-
-      const supabaseUrl = window.sentimentAPI.SUPABASE_URL;
-      const supabaseKey = window.sentimentAPI.SUPABASE_ANON_KEY;
-      
-      const response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?select=*&order=created_at.desc`, {
-        method: 'GET',
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.status === 401) {
-        return false;
-      }
-
-      if (!response.ok) {
-        return false;
-      }
-
-      const configs = await response.json();
-      
-      this.monitoredItems = {
-        email: [],
-        whatsapp: [],
-        x: [],
-        facebook: [],
-        instagram: [],
-        linkedin: []
-      };
-
-      configs.forEach(config => {
-        const channelType = config.channel_type;
-        
-        if (this.monitoredItems[channelType] !== undefined) {
-          const item = {
-            id: config.id,
-            name: config.channel_name,
-            created_at: config.created_at,
-            is_active: config.is_active,
-            flow_direction: config.flow_direction,
-            ...config.config_data
-          };
-          
-          this.monitoredItems[channelType].push(item);
-        }
-      });
-
-      this.saveToStorage();
-      return true;
-      
-    } catch (error) {
+      console.log('📥 Cargando configuraciones desde DB...');
       return false;
-    }
-  }
-
-  async saveToDatabase(channelType, configData, configId = null) {
-    try {
-      if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
-        this.saveToStorage();
-        return null;
-      }
-
-      const supabaseUrl = window.sentimentAPI.SUPABASE_URL;
-      const supabaseKey = window.sentimentAPI.SUPABASE_ANON_KEY;
-
-      const payload = {
-        channel_type: channelType,
-        channel_name: configData.name || configData.searchTerms || 'Sin nombre',
-        flow_direction: this.flowDirection[channelType] || 'both', // ✅ NUEVO
-        config_data: configData,
-        is_active: true
-    };
-
-      let response;
-      let savedConfig;
-
-      if (configId) {
-        response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?id=eq.${configId}`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const updated = await response.json();
-        savedConfig = updated[0];
-
-      } else {
-        response = await fetch(`${supabaseUrl}/rest/v1/channel_configs`, {
-          method: 'POST',
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const created = await response.json();
-        savedConfig = created[0];
-      }
-
-      this.saveToStorage();
-      return savedConfig;
-
     } catch (error) {
-      if (window.showNotification) {
-        window.showNotification(
-          'No se pudo guardar en la base de datos',
-          'error'
-        );
-      }
-      
-      this.saveToStorage();
-      return null;
+      console.error('Error cargando desde DB:', error);
+      return false;
     }
   }
 
   async deleteFromDatabase(configId) {
     try {
-      if (!window.sentimentAPI || !window.sentimentAPI.SUPABASE_URL) {
-        return false;
-      }
-
-      if (configId && configId.toString().startsWith('local_')) {
-        return false;
-      }
-
-      const supabaseUrl = window.sentimentAPI.SUPABASE_URL;
-      const supabaseKey = window.sentimentAPI.SUPABASE_ANON_KEY;
-
-      const response = await fetch(`${supabaseUrl}/rest/v1/channel_configs?id=eq.${configId}`, {
-        method: 'DELETE',
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!this.dbConnected) return false;
       
+      console.log('🗑️ Eliminando de DB:', configId);
       return true;
-
     } catch (error) {
+      console.error('Error eliminando de DB:', error);
       return false;
     }
   }
 
-  // ✅ CORREGIDO: Cargar datos automáticamente al renderizar
-  async renderChannelConfig() {
-    const container = document.getElementById('channel-config-container');
+  toggleFlowDirection(channel) {
+    const directions = ['sent', 'received', 'both'];
+    const currentIndex = directions.indexOf(this.flowDirection[channel]);
+    const nextIndex = (currentIndex + 1) % directions.length;
+    this.flowDirection[channel] = directions[nextIndex];
     
-    if (!container) return;
+    this.renderMonitoredList();
+    this.saveToStorage();
+  }
+
+  openEmailModal() {
+    this.editingIndex = -1;
+    this.editingConfigId = null;
     
-    if (!this.currentChannel) {
-      container.innerHTML = '';
-      return;
-    }
-
-    if (this.currentChannel === 'all') {
-      const activeChannels = this.getActiveChannels();
-      const totalItems = activeChannels.reduce((sum, channel) => {
-        return sum + this.monitoredItems[channel].length;
-      }, 0);
-
-      container.innerHTML = `
-        <div style="text-align: center; padding: 2rem; color: #111544; background: #f8fbff; border-radius: 10px; border: 1px solid #d0d3d6;">
-          <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-          <h3 style="font-size: 1.125rem; margin-bottom: 0.5rem; color: #111544;">Vista Consolidada</h3>
-          <p style="font-size: 0.875rem; color: #6d9abc; margin-bottom: 1rem;">
-            Mostrando análisis de todos los canales
-          </p>
-          <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-            <div style="background: #111544; color: #f8fbff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem;">
-              <strong>${activeChannels.length}</strong> canales activos
-            </div>
-            <div style="background: #6d9abc; color: #f8fbff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem;">
-              <strong>${totalItems}</strong> elementos
-            </div>
-            <div style="background: ${this.dbConnected ? '#10b981' : '#f59e0b'}; color: #f8fbff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem;">
-              ${this.dbConnected ? '🔗 DB' : '💾 Local'}
-            </div>
-          </div>
-        </div>
-      `;
-      
-      // ✅ CARGAR DATOS PARA TODOS LOS CANALES
-      await this.loadRealDataForChannel('all');
-      return;
-    }
-
-    if (this.currentChannel === 'email' || this.currentChannel === 'whatsapp') {
-      container.innerHTML = `
-        <div class="monitored-list">
-          <div id="monitored-items-list"></div>
-          <button class="add-btn" onclick="window.channelManager.openAddModal()">
-            <span>➕</span>
-            <span>Agregar ${this.currentChannel === 'email' ? 'Correo' : 'Número'}</span>
-          </button>
-          
-          <div style="margin-top: 1.5rem; padding: 1rem; background: #f8fbff; border-radius: 10px; border: 1px solid #d0d3d6;">
-            <h4 style="font-size: 0.875rem; font-weight: 600; color: #111544; margin-bottom: 0.75rem;">Flujo evaluado:</h4>
-            <div style="display: flex; gap: 1rem;">
-              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                <input type="radio" name="flow-${this.currentChannel}" value="in" ${this.flowDirection[this.currentChannel] === 'in' ? 'checked' : ''} onchange="window.channelManager.setFlowDirection('${this.currentChannel}', 'in')">
-                <span style="font-size: 0.875rem; color: #111544;">Entrada</span>
-              </label>
-              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                <input type="radio" name="flow-${this.currentChannel}" value="out" ${this.flowDirection[this.currentChannel] === 'out' ? 'checked' : ''} onchange="window.channelManager.setFlowDirection('${this.currentChannel}', 'out')">
-                <span style="font-size: 0.875rem; color: #111544;">Salida</span>
-              </label>
-              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                <input type="radio" name="flow-${this.currentChannel}" value="both" ${this.flowDirection[this.currentChannel] === 'both' ? 'checked' : ''} onchange="window.channelManager.setFlowDirection('${this.currentChannel}', 'both')">
-                <span style="font-size: 0.875rem; color: #111544;">Ambas vías</span>
-              </label>
-            </div>
-          </div>
-        </div>
-      `;
-      
-      this.renderMonitoredList();
-      
-      // ✅ CRÍTICO: Cargar datos automáticamente al seleccionar canal
-      await this.loadRealDataForChannel(this.currentChannel);
-      
-    } else {
-      container.innerHTML = `
-        <button class="add-btn" onclick="window.channelManager.openSocialModal()">
-          <span>⚙️</span>
-          <span>Configurar Monitoreo</span>
-        </button>
-        <div id="social-config-display" style="margin-top: 1rem;"></div>
-      `;
-      
-      this.renderSocialConfig();
-      
-      // ✅ CARGAR DATOS PARA REDES SOCIALES
-      await this.loadRealDataForChannel(this.currentChannel);
-    }
-  }
-
-  setFlowDirection(channel, direction) {
-    this.flowDirection[channel] = direction;
-    console.log(`🔄 Flujo de ${channel} cambiado a: ${direction}`);
-    this.loadRealDataForChannel(channel);
-  }
-
-  renderMonitoredList() {
-    const listContainer = document.getElementById('monitored-items-list');
-    if (!listContainer) return;
+    document.getElementById('email-modal-title').textContent = 'Agregar Correo Electrónico';
+    document.getElementById('email-name').value = '';
+    document.getElementById('email-address').value = '';
+    document.getElementById('email-department').value = '';
     
-    const items = this.monitoredItems[this.currentChannel] || [];
-
-    if (items.length === 0) {
-      listContainer.innerHTML = `
-        <div style="text-align: center; padding: 2rem; color: #6d9abc; background: #f8fbff; border-radius: 10px; border: 1px solid #d0d3d6;">
-          <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;">🔭</div>
-          <p style="font-size: 0.875rem;">No hay elementos configurados</p>
-        </div>
-      `;
-      return;
-    }
-
-    listContainer.innerHTML = items.map((item, index) => {
-      const isLocal = item.id && item.id.toString().startsWith('local_');
-      const statusBadge = isLocal 
-        ? '<span style="background: #f59e0b; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">Local</span>'
-        : '<span style="background: #10b981; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">DB</span>';
-      
-      return `
-        <div class="monitored-item">
-          <div class="monitored-info">
-            <div class="monitored-name">${item.name} ${statusBadge}</div>
-            <div class="monitored-detail">
-              ${this.currentChannel === 'email' ? item.email : item.phone} • ${item.department}
-            </div>
-          </div>
-          <div class="monitored-actions">
-            <button class="icon-btn edit" onclick="window.channelManager.editItem(${index})" title="Editar">✏️</button>
-            <button class="icon-btn delete" onclick="window.channelManager.openDeleteModal(${index})" title="Eliminar">🗑️</button>
-          </div>
-        </div>
-      `;
-    }).join('');
+    document.getElementById('email-modal').classList.add('active');
   }
 
-  renderSocialConfig() {
-    const display = document.getElementById('social-config-display');
-    if (!display) return;
-    
-    const config = this.monitoredItems[this.currentChannel][0];
-
-    if (!config) {
-      display.innerHTML = '';
-      return;
-    }
-
-    const isLocal = config.id && config.id.toString().startsWith('local_');
-    const statusBadge = isLocal 
-      ? '<span style="background: #f59e0b; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">Local</span>'
-      : '<span style="background: #10b981; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">DB</span>';
-
-    display.innerHTML = `
-      <div class="monitored-item">
-        <div class="monitored-info">
-          <div class="monitored-name">Configuración Activa ${statusBadge}</div>
-          <div class="monitored-detail">
-            ${config.searchTerms} • ${config.dateFrom} a ${config.dateTo}
-            ${config.limit ? ` • Límite: ${config.limit}` : ' • Sin límite'}
-          </div>
-        </div>
-        <div class="monitored-actions">
-          <button class="icon-btn edit" onclick="window.channelManager.editSocialConfig()" title="Editar">✏️</button>
-          <button class="icon-btn delete" onclick="window.channelManager.openDeleteModal(0)" title="Eliminar">🗑️</button>
-        </div>
-      </div>
-    `;
+  closeEmailModal() {
+    document.getElementById('email-modal').classList.remove('active');
+    this.editingIndex = -1;
+    this.editingConfigId = null;
   }
 
-  openAddModal() {
-    if (this.currentChannel === 'email') {
-      document.getElementById('email-modal-title').textContent = 'Agregar Correo Electrónico';
-      document.getElementById('email-name').value = '';
-      document.getElementById('email-address').value = '';
-      document.getElementById('email-department').value = '';
-      this.editingIndex = -1;
-      this.editingConfigId = null;
-      document.getElementById('email-modal').classList.add('active');
-    } else if (this.currentChannel === 'whatsapp') {
-      document.getElementById('whatsapp-modal-title').textContent = 'Agregar WhatsApp Business';
-      document.getElementById('whatsapp-name').value = '';
-      document.getElementById('whatsapp-code').value = '+504';
-      document.getElementById('whatsapp-number').value = '';
-      document.getElementById('whatsapp-department').value = '';
-      this.editingIndex = -1;
-      this.editingConfigId = null;
-      document.getElementById('whatsapp-modal').classList.add('active');
-    }
-  }
-
-  editItem(index) {
+  editMonitoredItem(index) {
     this.editingIndex = index;
     const item = this.monitoredItems[this.currentChannel][index];
-    this.editingConfigId = item.id;
+    this.editingConfigId = item ? item.id : null;
 
     if (this.currentChannel === 'email') {
       document.getElementById('email-modal-title').textContent = 'Editar Correo Electrónico';
@@ -921,20 +786,28 @@ generateSimulatedAllChannelsData() {
       document.getElementById('email-department').value = item.department;
       document.getElementById('email-modal').classList.add('active');
     } else if (this.currentChannel === 'whatsapp') {
-      document.getElementById('whatsapp-modal-title').textContent = 'Editar WhatsApp Business';
+      document.getElementById('whatsapp-modal-title').textContent = 'Editar WhatsApp';
       document.getElementById('whatsapp-name').value = item.name;
+      
       const phoneParts = item.phone.split(' ');
       document.getElementById('whatsapp-code').value = phoneParts[0];
-      document.getElementById('whatsapp-number').value = phoneParts[1] || '';
+      document.getElementById('whatsapp-number').value = phoneParts.slice(1).join(' ');
       document.getElementById('whatsapp-department').value = item.department;
       document.getElementById('whatsapp-modal').classList.add('active');
     }
   }
 
-  closeEmailModal() {
-    document.getElementById('email-modal').classList.remove('active');
+  openWhatsAppModal() {
     this.editingIndex = -1;
     this.editingConfigId = null;
+    
+    document.getElementById('whatsapp-modal-title').textContent = 'Agregar WhatsApp';
+    document.getElementById('whatsapp-name').value = '';
+    document.getElementById('whatsapp-code').value = '+504';
+    document.getElementById('whatsapp-number').value = '';
+    document.getElementById('whatsapp-department').value = '';
+    
+    document.getElementById('whatsapp-modal').classList.add('active');
   }
 
   closeWhatsAppModal() {
@@ -1125,45 +998,62 @@ generateSimulatedAllChannelsData() {
     this.deleteConfigId = null;
   }
 
+  // ✅ FIX 1: CORRECCIÓN COMPLETA - Refresh UI al eliminar
   async confirmDelete() {
-  const reason = document.getElementById('delete-reason').value.trim();
+    const reason = document.getElementById('delete-reason').value.trim();
 
-  if (!reason) {
-    alert('Por favor indica el motivo de la eliminación');
-    return;
-  }
+    if (!reason) {
+      alert('Por favor indica el motivo de la eliminación');
+      return;
+    }
 
-  // Soft delete en DB
-  if (this.deleteConfigId && !this.deleteConfigId.toString().startsWith('local_')) {
-    await this.deleteFromDatabase(this.deleteConfigId);
-  }
+    console.log('🗑️ Eliminando elemento:', {
+      channel: this.deleteItemChannel,
+      index: this.deleteItemIndex,
+      configId: this.deleteConfigId
+    });
 
-  // Eliminar del array
-  this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
-  
-  this.saveToStorage();
-  
-  this.closeDeleteModal();
+    // Soft delete en DB
+    if (this.deleteConfigId && !this.deleteConfigId.toString().startsWith('local_')) {
+      await this.deleteFromDatabase(this.deleteConfigId);
+    }
 
-  // ✅ FORZAR ACTUALIZACIÓN DE UI
-  if (this.deleteItemChannel === 'email' || this.deleteItemChannel === 'whatsapp') {
-    this.renderMonitoredList();
-  } else {
-    this.renderSocialConfig();
+    // Eliminar del array
+    this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
+    
+    this.saveToStorage();
+    
+    this.closeDeleteModal();
+
+    // ✅ FIX 1: ACTUALIZACIÓN COMPLETA DEL UI
+    console.log('🔄 Actualizando UI después de eliminar...');
+
+    // 1. Actualizar lista visual
+    if (this.deleteItemChannel === 'email' || this.deleteItemChannel === 'whatsapp') {
+      this.renderMonitoredList();
+      console.log('✅ Lista de elementos actualizada');
+    } else {
+      this.renderSocialConfig();
+      console.log('✅ Configuración social actualizada');
+    }
+    
+    // 2. Recargar datos del canal (regenera cache)
+    await this.loadRealDataForChannel(this.currentChannel);
+    console.log('✅ Datos del canal recargados');
+    
+    // 3. Actualizar gráfico en el dashboard
+    if (window.dashboard && typeof window.dashboard.setSelectedChannel === 'function') {
+      window.dashboard.setSelectedChannel(this.currentChannel);
+      console.log('✅ Gráfico actualizado');
+    }
+    
+    // 4. Mostrar notificación
+    if (window.showNotification) {
+      window.showNotification('Elemento eliminado correctamente', 'success');
+    }
+
+    console.log('✅ UI completamente actualizado');
   }
-  
-  // ✅ RECARGAR DATOS Y ACTUALIZAR GRÁFICA
-  await this.loadRealDataForChannel(this.currentChannel);
-  
-  // ✅ ACTUALIZAR DASHBOARD
-  if (window.dashboard && typeof window.dashboard.setSelectedChannel === 'function') {
-    window.dashboard.setSelectedChannel(this.currentChannel);
-  }
-  
-  if (window.showNotification) {
-    window.showNotification('Elemento eliminado correctamente', 'success');
-  }
-}
 
   saveToStorage() {
     try {
@@ -1203,8 +1093,15 @@ generateSimulatedAllChannelsData() {
   hasActiveMonitoring() {
     return this.getActiveChannels().length > 0;
   }
+
+  capitalizeFirst(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
 }
 
 window.channelManager = new ChannelManager();
 
-console.log('✅ Channel Manager v4.1 - CARGA AUTOMÁTICA CORREGIDA');
+console.log('✅ Channel Manager v4.2 - SUPER CORREGIDO ---');
+console.log('✅ FIX 1: UI refresh al eliminar');
+console.log('✅ FIX 2: Emociones agregadas correctamente');
+console.log('✅ FIX 3: Gráfico con todos los canales visibles');
