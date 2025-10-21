@@ -1,7 +1,7 @@
 // ============================================
-// T2B Tech2Business - Channel Manager v4.1 CORREGIDO
-// FIXED: Carga automática de datos al seleccionar canal
-// FIXED: Mapeo correcto de canales en gráfica
+// T2B Tech2Business - Channel Manager v5.1 CORREGIDO
+// ✅ FIX: Datos NO se regeneran (se mantienen estables)
+// ✅ FIX: Emociones SIEMPRE 3+3 (primarias y secundarias)
 // ============================================
 
 class ChannelManager {
@@ -27,12 +27,12 @@ class ChannelManager {
     this.deleteItemChannel = '';
     this.deleteConfigId = null;
     this.initialized = false;
-    this.realDataCache = {};
+    this.realDataCache = {}; // ✅ CACHE PERSISTENTE
     this.dbConnected = false;
   }
 
   async init() {
-    console.log('✅ Channel Manager T2B v4.1 iniciando...');
+    console.log('✅ Channel Manager T2B v5.1 iniciando...');
     
     const dbLoaded = await this.loadFromDatabase();
     
@@ -48,7 +48,7 @@ class ChannelManager {
     if (channelSelect) {
       channelSelect.addEventListener('change', async (e) => {
         this.currentChannel = e.target.value;
-        await this.renderChannelConfig(); // ✅ AWAIT para esperar carga
+        await this.renderChannelConfig();
         
         if (window.dashboard && typeof window.dashboard.setSelectedChannel === 'function') {
           window.dashboard.setSelectedChannel(this.currentChannel);
@@ -57,24 +57,20 @@ class ChannelManager {
     }
     
     this.initialized = true;
-    console.log('✅ Channel Manager iniciado');
-    console.log(`📡 Conexión DB: ${this.dbConnected ? 'ACTIVA' : 'LOCAL'}`);
+    console.log('✅ Channel Manager v5.1 iniciado');
   }
 
   async triggerDataUpdate() {
     if (!this.currentChannel) return;
-    
     console.log('🔄 Actualizando datos del canal:', this.currentChannel);
     await this.loadRealDataForChannel(this.currentChannel);
   }
 
   async loadRealDataForChannel(channel) {
-    if (!channel || channel === '') {
-      return;
-    }
+    if (!channel || channel === '') return;
 
     try {
-      console.log('🔍 Cargando datos reales para:', channel);
+      console.log('🔍 Cargando datos para:', channel);
 
       if (!window.sentimentAPI) {
         console.warn('⚠️ API no disponible');
@@ -108,21 +104,59 @@ class ChannelManager {
             this.processRealData(channel, response);
           } else {
             console.warn(`⚠️ No hay datos para ${channel}`);
-            this.generateSimulatedData(channel);
+            // ✅ SOLO generar datos si NO existen en cache
+            if (!this.realDataCache[channel]) {
+              this.generateSimulatedData(channel);
+            } else {
+              console.log('✅ Usando datos del cache');
+              this.updateUIWithCachedData(channel);
+            }
           }
         } catch (apiError) {
-          console.warn(`⚠️ Error API para ${channel}, usando datos simulados`);
-          this.generateSimulatedData(channel);
+          console.warn(`⚠️ Error API para ${channel}`);
+          if (!this.realDataCache[channel]) {
+            this.generateSimulatedData(channel);
+          } else {
+            this.updateUIWithCachedData(channel);
+          }
         }
       }
 
     } catch (error) {
       console.error('❌ Error:', error);
-      this.generateSimulatedData(channel);
+      if (!this.realDataCache[channel]) {
+        this.generateSimulatedData(channel);
+      }
     }
   }
 
+  // ✅ NUEVO: Actualizar UI con datos cacheados (sin regenerar)
+  updateUIWithCachedData(channel) {
+    const cached = this.realDataCache[channel];
+    if (!cached) return;
+
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('results-container').classList.add('active');
+
+    if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
+      window.dashboard.updateKPIs(cached.sentimentData);
+    }
+
+    this.updateChartWithRealData(channel);
+    this.updateEmotionsWithSimulatedData(cached.emotions);
+  }
+
+  // ✅ CORREGIDO: Generar datos SOLO UNA VEZ
   generateSimulatedData(channel) {
+    // ✅ Si ya existen datos, NO regenerar
+    if (this.realDataCache[channel]) {
+      console.log('✅ Datos ya existen en cache para', channel);
+      this.updateUIWithCachedData(channel);
+      return;
+    }
+
+    console.log('🎲 Generando datos simulados para', channel);
+
     const total = Math.floor(Math.random() * 50) + 10;
     const positiveCount = Math.floor(total * (Math.random() * 0.4 + 0.3));
     const negativeCount = Math.floor(total * (Math.random() * 0.3 + 0.1));
@@ -142,10 +176,12 @@ class ChannelManager {
 
     const emotions = this.generateSimulatedEmotions();
 
+    // ✅ GUARDAR EN CACHE (NO se regenera)
     this.realDataCache[channel] = {
       sentimentData,
       emotions,
-      rawData: []
+      rawData: [],
+      timestamp: Date.now() // Para saber cuándo se creó
     };
 
     document.getElementById('empty-state').style.display = 'none';
@@ -199,186 +235,105 @@ class ChannelManager {
     primary.sort((a, b) => b.value - a.value);
     secondary.sort((a, b) => b.value - a.value);
 
+    // ✅ SIEMPRE mostrar 3 de cada tipo
     if (window.dashboard && typeof window.dashboard.renderEmotions === 'function') {
       window.dashboard.renderEmotions('primary-emotions', primary.slice(0, 3));
       window.dashboard.renderEmotions('secondary-emotions', secondary.slice(0, 3));
     }
+
+    console.log('📊 Emociones renderizadas:', {
+      primarias: primary.slice(0, 3).length,
+      secundarias: secondary.slice(0, 3).length
+    });
   }
 
- async loadAllChannelsData() {
-  try {
-    const response = await window.sentimentAPI.getHistory({
-      limit: 500,
-      include_stats: true
-    });
+  async loadAllChannelsData() {
+    try {
+      const response = await window.sentimentAPI.getHistory({
+        limit: 500,
+        include_stats: true
+      });
 
-    if (response.success && response.statistics) {
-      this.processAllChannelsData(response);
-    } else {
+      if (response.success && response.statistics) {
+        this.processAllChannelsData(response);
+      } else {
+        this.generateSimulatedAllChannelsData();
+      }
+    } catch (error) {
+      console.error('❌ Error:', error);
       this.generateSimulatedAllChannelsData();
     }
-  } catch (error) {
-    console.error('❌ Error:', error);
-    this.generateSimulatedAllChannelsData();
-  }
-}
-
-generateSimulatedAllChannelsData() {
-  const activeChannels = this.getActiveChannels();
-  
-  if (activeChannels.length === 0) {
-    this.showEmptyState();
-    return;
   }
 
-  // ✅ PASO 1: Generar datos para cada canal
-  activeChannels.forEach(channel => {
-    this.generateSimulatedData(channel);
-  });
-
-  // ✅ PASO 2: Agregar sentimientos de todos los canales
-  let totalPositive = 0, totalNeutral = 0, totalNegative = 0, totalCount = 0;
-  
-  activeChannels.forEach(channel => {
-    const cached = this.realDataCache[channel];
-    if (cached && cached.sentimentData) {
-      totalPositive += cached.sentimentData.positiveCount || 0;
-      totalNeutral += cached.sentimentData.neutralCount || 0;
-      totalNegative += cached.sentimentData.negativeCount || 0;
-      totalCount += cached.sentimentData.total || 0;
+  // ✅ CORREGIDO: No regenerar datos existentes
+  generateSimulatedAllChannelsData() {
+    const activeChannels = this.getActiveChannels();
+    
+    if (activeChannels.length === 0) {
+      this.showEmptyState();
+      return;
     }
-  });
 
-  const sentimentData = {
-    positive: totalCount > 0 ? Math.round((totalPositive / totalCount) * 100) : 0,
-    neutral: totalCount > 0 ? Math.round((totalNeutral / totalCount) * 100) : 0,
-    negative: totalCount > 0 ? Math.round((totalNegative / totalCount) * 100) : 0,
-    score: totalCount > 0 ? Math.round(((totalPositive - totalNegative) / totalCount) * 100) : 0
-  };
+    console.log('🔄 Agregando datos de canales:', activeChannels);
 
-  // ✅ PASO 3: AGREGAR EMOCIONES DE TODOS LOS CANALES - CORREGIDO
-  const primaryEmotions = ['feliz', 'triste', 'enojado', 'neutral', 'asustado', 'sorprendido'];
-  const aggregatedEmotions = {
-    primary: {},
-    secondary: {}
-  };
-  
-  // Inicializar emociones primarias
-  primaryEmotions.forEach(emotion => {
-    aggregatedEmotions.primary[emotion] = 0;
-  });
-  
-  // Agregar emociones de todos los canales
-  activeChannels.forEach(channel => {
-    const cached = this.realDataCache[channel];
-    if (cached && cached.emotions) {
-      Object.entries(cached.emotions).forEach(([emotion, value]) => {
-        if (primaryEmotions.includes(emotion)) {
-          aggregatedEmotions.primary[emotion] = (aggregatedEmotions.primary[emotion] || 0) + value;
-        } else {
-          aggregatedEmotions.secondary[emotion] = (aggregatedEmotions.secondary[emotion] || 0) + value;
-        }
-      });
-    }
-  });
-
-  // Calcular promedio de emociones
-  const numChannels = activeChannels.length;
-  Object.keys(aggregatedEmotions.primary).forEach(emotion => {
-    aggregatedEmotions.primary[emotion] = Math.round(aggregatedEmotions.primary[emotion] / numChannels);
-  });
-  Object.keys(aggregatedEmotions.secondary).forEach(emotion => {
-    aggregatedEmotions.secondary[emotion] = Math.round(aggregatedEmotions.secondary[emotion] / numChannels);
-  });
-
-  document.getElementById('empty-state').style.display = 'none';
-  document.getElementById('results-container').classList.add('active');
-
-  if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
-    window.dashboard.updateKPIs(sentimentData);
-  }
-
-  this.updateChartWithAllChannels(activeChannels);
-  
-  // ✅ ACTUALIZAR EMOCIONES SEPARADAS EN PRIMARIAS Y SECUNDARIAS
-  this.updateAggregatedEmotions(aggregatedEmotions);
-}
-
-// ✅ NUEVO MÉTODO: Actualizar emociones agregadas correctamente
-updateAggregatedEmotions(aggregatedEmotions) {
-  const primary = [];
-  const secondary = [];
-
-  // Convertir a array y ordenar por valor
-  Object.entries(aggregatedEmotions.primary).forEach(([emotion, value]) => {
-    primary.push({
-      emoji: window.dashboard.getEmotionEmoji(emotion),
-      name: this.capitalizeFirst(emotion),
-      value: value,
-      color: window.dashboard.getEmotionColor(emotion)
-    });
-  });
-
-  Object.entries(aggregatedEmotions.secondary).forEach(([emotion, value]) => {
-    secondary.push({
-      emoji: window.dashboard.getEmotionEmoji(emotion),
-      name: this.capitalizeFirst(emotion),
-      value: value,
-      color: window.dashboard.getEmotionColor(emotion)
-    });
-  });
-
-  // Ordenar de mayor a menor
-  primary.sort((a, b) => b.value - a.value);
-  secondary.sort((a, b) => b.value - a.value);
-
-  console.log('📊 Top 3 Emociones Primarias:', primary.slice(0, 3).map(e => `${e.name}: ${e.value}%`));
-  console.log('📊 Top 3 Emociones Secundarias:', secondary.slice(0, 3).map(e => `${e.name}: ${e.value}%`));
-
-  // Renderizar solo las top 3 de cada tipo
-  if (window.dashboard && typeof window.dashboard.renderEmotions === 'function') {
-    window.dashboard.renderEmotions('primary-emotions', primary.slice(0, 3));
-    window.dashboard.renderEmotions('secondary-emotions', secondary.slice(0, 3));
-  }
-}
-
-  processRealData(channel, response) {
-    const data = response.data || [];
-
-    let positiveCount = 0;
-    let neutralCount = 0;
-    let negativeCount = 0;
-
-    data.forEach(item => {
-      const score = item.sentiment_score || 0;
-      if (score >= 60) {
-        positiveCount++;
-      } else if (score >= 40) {
-        neutralCount++;
-      } else {
-        negativeCount++;
+    // ✅ SOLO generar datos si no existen
+    activeChannels.forEach(channel => {
+      if (!this.realDataCache[channel]) {
+        this.generateSimulatedData(channel);
       }
     });
 
-    const total = data.length;
+    // Agregar sentimientos
+    let totalPositive = 0, totalNeutral = 0, totalNegative = 0, totalCount = 0;
     
+    activeChannels.forEach(channel => {
+      const cached = this.realDataCache[channel];
+      if (cached && cached.sentimentData) {
+        totalPositive += cached.sentimentData.positiveCount || 0;
+        totalNeutral += cached.sentimentData.neutralCount || 0;
+        totalNegative += cached.sentimentData.negativeCount || 0;
+        totalCount += cached.sentimentData.total || 0;
+      }
+    });
+
     const sentimentData = {
-      positive: total > 0 ? Math.round((positiveCount / total) * 100) : 0,
-      neutral: total > 0 ? Math.round((neutralCount / total) * 100) : 0,
-      negative: total > 0 ? Math.round((negativeCount / total) * 100) : 0,
-      total: total,
-      positiveCount: positiveCount,
-      neutralCount: neutralCount,
-      negativeCount: negativeCount
+      positive: totalCount > 0 ? Math.round((totalPositive / totalCount) * 100) : 0,
+      neutral: totalCount > 0 ? Math.round((totalNeutral / totalCount) * 100) : 0,
+      negative: totalCount > 0 ? Math.round((totalNegative / totalCount) * 100) : 0,
+      score: totalCount > 0 ? Math.round(((totalPositive - totalNegative) / totalCount) * 100) : 0
     };
 
-    sentimentData.score = sentimentData.positive - sentimentData.negative;
-
-    this.realDataCache[channel] = {
-      sentimentData,
-      emotions: this.extractEmotions(data),
-      rawData: data
+    // ✅ AGREGAR EMOCIONES CORRECTAMENTE
+    const primaryEmotions = ['feliz', 'triste', 'enojado', 'neutral', 'asustado', 'sorprendido'];
+    const aggregatedEmotions = {
+      primary: {},
+      secondary: {}
     };
+    
+    primaryEmotions.forEach(emotion => {
+      aggregatedEmotions.primary[emotion] = 0;
+    });
+    
+    activeChannels.forEach(channel => {
+      const cached = this.realDataCache[channel];
+      if (cached && cached.emotions) {
+        Object.entries(cached.emotions).forEach(([emotion, value]) => {
+          if (primaryEmotions.includes(emotion)) {
+            aggregatedEmotions.primary[emotion] = (aggregatedEmotions.primary[emotion] || 0) + value;
+          } else {
+            aggregatedEmotions.secondary[emotion] = (aggregatedEmotions.secondary[emotion] || 0) + value;
+          }
+        });
+      }
+    });
+
+    const numChannels = activeChannels.length;
+    Object.keys(aggregatedEmotions.primary).forEach(emotion => {
+      aggregatedEmotions.primary[emotion] = Math.round(aggregatedEmotions.primary[emotion] / numChannels);
+    });
+    Object.keys(aggregatedEmotions.secondary).forEach(emotion => {
+      aggregatedEmotions.secondary[emotion] = Math.round(aggregatedEmotions.secondary[emotion] / numChannels);
+    });
 
     document.getElementById('empty-state').style.display = 'none';
     document.getElementById('results-container').classList.add('active');
@@ -387,8 +342,133 @@ updateAggregatedEmotions(aggregatedEmotions) {
       window.dashboard.updateKPIs(sentimentData);
     }
 
-    this.updateChartWithRealData(channel);
-    this.updateEmotionsWithRealData(data);
+    this.updateChartWithAllChannels(activeChannels);
+    this.updateAggregatedEmotions(aggregatedEmotions);
+  }
+
+  // ✅ MÉTODO PARA EMOCIONES AGREGADAS
+  updateAggregatedEmotions(aggregatedEmotions) {
+    const primary = [];
+    const secondary = [];
+
+    Object.entries(aggregatedEmotions.primary).forEach(([emotion, value]) => {
+      primary.push({
+        emoji: window.dashboard.getEmotionEmoji(emotion),
+        name: this.capitalizeFirst(emotion),
+        value: value,
+        color: window.dashboard.getEmotionColor(emotion)
+      });
+    });
+
+    Object.entries(aggregatedEmotions.secondary).forEach(([emotion, value]) => {
+      secondary.push({
+        emoji: window.dashboard.getEmotionEmoji(emotion),
+        name: this.capitalizeFirst(emotion),
+        value: value,
+        color: window.dashboard.getEmotionColor(emotion)
+      });
+    });
+
+    primary.sort((a, b) => b.value - a.value);
+    secondary.sort((a, b) => b.value - a.value);
+
+    console.log('📊 Top 3 Primarias:', primary.slice(0, 3).map(e => `${e.name}: ${e.value}%`));
+    console.log('📊 Top 3 Secundarias:', secondary.slice(0, 3).map(e => `${e.name}: ${e.value}%`));
+
+    // ✅ SIEMPRE 3 de cada tipo
+    if (window.dashboard && typeof window.dashboard.renderEmotions === 'function') {
+      window.dashboard.renderEmotions('primary-emotions', primary.slice(0, 3));
+      window.dashboard.renderEmotions('secondary-emotions', secondary.slice(0, 3));
+    }
+  }
+
+  processRealData(channel, response) {
+    try {
+      const data = response.data || [];
+      const stats = response.statistics || {};
+
+      if (data.length === 0) {
+        if (!this.realDataCache[channel]) {
+          this.generateSimulatedData(channel);
+        }
+        return;
+      }
+
+      let positiveCount = 0, neutralCount = 0, negativeCount = 0;
+      const primaryEmotions = {};
+      const secondaryEmotions = {};
+
+      data.forEach(item => {
+        const score = item.sentiment_score || 0;
+        
+        if (score >= 60) {
+          positiveCount++;
+        } else if (score >= 40) {
+          neutralCount++;
+        } else {
+          negativeCount++;
+        }
+
+        if (item.primary_emotions) {
+          Object.entries(item.primary_emotions).forEach(([emotion, value]) => {
+            primaryEmotions[emotion] = (primaryEmotions[emotion] || 0) + value;
+          });
+        }
+
+        if (item.secondary_emotions) {
+          Object.entries(item.secondary_emotions).forEach(([emotion, value]) => {
+            secondaryEmotions[emotion] = (secondaryEmotions[emotion] || 0) + value;
+          });
+        }
+      });
+
+      const total = data.length;
+      const sentimentData = {
+        positive: Math.round((positiveCount / total) * 100),
+        neutral: Math.round((neutralCount / total) * 100),
+        negative: Math.round((negativeCount / total) * 100),
+        total: total,
+        positiveCount: positiveCount,
+        neutralCount: neutralCount,
+        negativeCount: negativeCount
+      };
+
+      sentimentData.score = sentimentData.positive - sentimentData.negative;
+
+      Object.keys(primaryEmotions).forEach(emotion => {
+        primaryEmotions[emotion] = Math.round(primaryEmotions[emotion] / total);
+      });
+
+      Object.keys(secondaryEmotions).forEach(emotion => {
+        secondaryEmotions[emotion] = Math.round(secondaryEmotions[emotion] / total);
+      });
+
+      const allEmotions = { ...primaryEmotions, ...secondaryEmotions };
+
+      // ✅ GUARDAR EN CACHE
+      this.realDataCache[channel] = {
+        sentimentData,
+        emotions: allEmotions,
+        rawData: data,
+        timestamp: Date.now()
+      };
+
+      document.getElementById('empty-state').style.display = 'none';
+      document.getElementById('results-container').classList.add('active');
+
+      if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
+        window.dashboard.updateKPIs(sentimentData);
+      }
+
+      this.updateChartWithRealData(channel);
+      this.updateEmotionsWithSimulatedData(allEmotions);
+
+    } catch (error) {
+      console.error('❌ Error procesando datos:', error);
+      if (!this.realDataCache[channel]) {
+        this.generateSimulatedData(channel);
+      }
+    }
   }
 
   processAllChannelsData(response) {
@@ -459,13 +539,7 @@ updateAggregatedEmotions(aggregatedEmotions) {
 
     const activeChannels = this.getActiveChannels();
     
-    // ✅ CORREGIDO: Siempre incluir todos los canales disponibles
-    const allPossibleChannels = ['email', 'whatsapp', 'x', 'facebook', 'instagram', 'linkedin'];
-    const channelsToShow = allPossibleChannels.filter(ch => 
-      activeChannels.includes(ch) || ch === channel
-    );
-    
-    const channelDataArray = channelsToShow.map(ch => {
+    const channelDataArray = activeChannels.map(ch => {
       const cached = this.realDataCache[ch];
       
       if (cached && cached.sentimentData) {
@@ -592,7 +666,9 @@ updateAggregatedEmotions(aggregatedEmotions) {
   }
 
   showNoDataForChannel(channel) {
-    this.generateSimulatedData(channel);
+    if (!this.realDataCache[channel]) {
+      this.generateSimulatedData(channel);
+    }
   }
 
   showEmptyState() {
@@ -679,7 +755,7 @@ updateAggregatedEmotions(aggregatedEmotions) {
       const payload = {
         channel_type: channelType,
         channel_name: configData.name || configData.searchTerms || 'Sin nombre',
-        flow_direction: this.flowDirection[channelType] || 'both', // ✅ NUEVO
+        flow_direction: this.flowDirection[channelType] || 'both',
         config_data: configData,
         is_active: true
     };
@@ -727,10 +803,7 @@ updateAggregatedEmotions(aggregatedEmotions) {
 
     } catch (error) {
       if (window.showNotification) {
-        window.showNotification(
-          'No se pudo guardar en la base de datos',
-          'error'
-        );
+        window.showNotification('No se pudo guardar en la base de datos', 'error');
       }
       
       this.saveToStorage();
@@ -769,7 +842,6 @@ updateAggregatedEmotions(aggregatedEmotions) {
     }
   }
 
-  // ✅ CORREGIDO: Cargar datos automáticamente al renderizar
   async renderChannelConfig() {
     const container = document.getElementById('channel-config-container');
     
@@ -807,7 +879,6 @@ updateAggregatedEmotions(aggregatedEmotions) {
         </div>
       `;
       
-      // ✅ CARGAR DATOS PARA TODOS LOS CANALES
       await this.loadRealDataForChannel('all');
       return;
     }
@@ -842,8 +913,6 @@ updateAggregatedEmotions(aggregatedEmotions) {
       `;
       
       this.renderMonitoredList();
-      
-      // ✅ CRÍTICO: Cargar datos automáticamente al seleccionar canal
       await this.loadRealDataForChannel(this.currentChannel);
       
     } else {
@@ -856,8 +925,6 @@ updateAggregatedEmotions(aggregatedEmotions) {
       `;
       
       this.renderSocialConfig();
-      
-      // ✅ CARGAR DATOS PARA REDES SOCIALES
       await this.loadRealDataForChannel(this.currentChannel);
     }
   }
@@ -884,87 +951,92 @@ updateAggregatedEmotions(aggregatedEmotions) {
       return;
     }
 
-    listContainer.innerHTML = items.map((item, index) => {
-      const isLocal = item.id && item.id.toString().startsWith('local_');
-      const statusBadge = isLocal 
-        ? '<span style="background: #f59e0b; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">Local</span>'
-        : '<span style="background: #10b981; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">DB</span>';
-      
-      return `
-        <div class="monitored-item">
-          <div class="monitored-info">
-            <div class="monitored-name">${item.name} ${statusBadge}</div>
-            <div class="monitored-detail">
-              ${this.currentChannel === 'email' ? item.email : item.phone} • ${item.department}
-            </div>
-          </div>
-          <div class="monitored-actions">
-            <button class="icon-btn edit" onclick="window.channelManager.editItem(${index})" title="Editar">✏️</button>
-            <button class="icon-btn delete" onclick="window.channelManager.openDeleteModal(${index})" title="Eliminar">🗑️</button>
-          </div>
+    listContainer.innerHTML = items.map((item, index) => `
+      <div class="monitored-item">
+        <div class="item-info">
+          <div class="item-name">${item.name}</div>
+          <div class="item-details">${this.currentChannel === 'email' ? item.email : item.phone}</div>
+          <div class="item-department">${item.department}</div>
         </div>
-      `;
-    }).join('');
+        <div class="item-actions">
+          <button onclick="window.channelManager.editMonitoredItem(${index})" class="btn-icon" title="Editar">
+            ✏️
+          </button>
+          <button onclick="window.channelManager.openDeleteModal(${index})" class="btn-icon" title="Eliminar">
+            🗑️
+          </button>
+        </div>
+      </div>
+    `).join('');
   }
 
   renderSocialConfig() {
-    const display = document.getElementById('social-config-display');
-    if (!display) return;
-    
-    const config = this.monitoredItems[this.currentChannel][0];
+    const container = document.getElementById('social-config-display');
+    if (!container) return;
 
+    const config = this.monitoredItems[this.currentChannel][0];
+    
     if (!config) {
-      display.innerHTML = '';
+      container.innerHTML = '<div class="empty-config">No hay configuración establecida</div>';
       return;
     }
 
-    const isLocal = config.id && config.id.toString().startsWith('local_');
-    const statusBadge = isLocal 
-      ? '<span style="background: #f59e0b; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">Local</span>'
-      : '<span style="background: #10b981; color: white; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">DB</span>';
-
-    display.innerHTML = `
-      <div class="monitored-item">
-        <div class="monitored-info">
-          <div class="monitored-name">Configuración Activa ${statusBadge}</div>
-          <div class="monitored-detail">
-            ${config.searchTerms} • ${config.dateFrom} a ${config.dateTo}
-            ${config.limit ? ` • Límite: ${config.limit}` : ' • Sin límite'}
-          </div>
+    container.innerHTML = `
+      <div class="social-config-card">
+        <div class="config-row">
+          <span class="config-label">Términos de búsqueda:</span>
+          <span class="config-value">${config.searchTerms}</span>
         </div>
-        <div class="monitored-actions">
-          <button class="icon-btn edit" onclick="window.channelManager.editSocialConfig()" title="Editar">✏️</button>
-          <button class="icon-btn delete" onclick="window.channelManager.openDeleteModal(0)" title="Eliminar">🗑️</button>
+        ${config.keywords ? `
+        <div class="config-row">
+          <span class="config-label">Palabras clave:</span>
+          <span class="config-value">${config.keywords}</span>
         </div>
+        ` : ''}
+        <div class="config-row">
+          <span class="config-label">Período:</span>
+          <span class="config-value">${config.dateFrom} al ${config.dateTo}</span>
+        </div>
+        ${config.limit ? `
+        <div class="config-row">
+          <span class="config-label">Límite de resultados:</span>
+          <span class="config-value">${config.limit}</span>
+        </div>
+        ` : ''}
       </div>
     `;
   }
 
   openAddModal() {
     if (this.currentChannel === 'email') {
-      document.getElementById('email-modal-title').textContent = 'Agregar Correo Electrónico';
-      document.getElementById('email-name').value = '';
-      document.getElementById('email-address').value = '';
-      document.getElementById('email-department').value = '';
-      this.editingIndex = -1;
-      this.editingConfigId = null;
-      document.getElementById('email-modal').classList.add('active');
+      this.openEmailModal();
     } else if (this.currentChannel === 'whatsapp') {
-      document.getElementById('whatsapp-modal-title').textContent = 'Agregar WhatsApp Business';
-      document.getElementById('whatsapp-name').value = '';
-      document.getElementById('whatsapp-code').value = '+504';
-      document.getElementById('whatsapp-number').value = '';
-      document.getElementById('whatsapp-department').value = '';
-      this.editingIndex = -1;
-      this.editingConfigId = null;
-      document.getElementById('whatsapp-modal').classList.add('active');
+      this.openWhatsAppModal();
     }
   }
 
-  editItem(index) {
+  openEmailModal() {
+    this.editingIndex = -1;
+    this.editingConfigId = null;
+    
+    document.getElementById('email-modal-title').textContent = 'Agregar Correo Electrónico';
+    document.getElementById('email-name').value = '';
+    document.getElementById('email-address').value = '';
+    document.getElementById('email-department').value = '';
+    
+    document.getElementById('email-modal').classList.add('active');
+  }
+
+  closeEmailModal() {
+    document.getElementById('email-modal').classList.remove('active');
+    this.editingIndex = -1;
+    this.editingConfigId = null;
+  }
+
+  editMonitoredItem(index) {
     this.editingIndex = index;
     const item = this.monitoredItems[this.currentChannel][index];
-    this.editingConfigId = item.id;
+    this.editingConfigId = item ? item.id : null;
 
     if (this.currentChannel === 'email') {
       document.getElementById('email-modal-title').textContent = 'Editar Correo Electrónico';
@@ -973,20 +1045,28 @@ updateAggregatedEmotions(aggregatedEmotions) {
       document.getElementById('email-department').value = item.department;
       document.getElementById('email-modal').classList.add('active');
     } else if (this.currentChannel === 'whatsapp') {
-      document.getElementById('whatsapp-modal-title').textContent = 'Editar WhatsApp Business';
+      document.getElementById('whatsapp-modal-title').textContent = 'Editar WhatsApp';
       document.getElementById('whatsapp-name').value = item.name;
+      
       const phoneParts = item.phone.split(' ');
       document.getElementById('whatsapp-code').value = phoneParts[0];
-      document.getElementById('whatsapp-number').value = phoneParts[1] || '';
+      document.getElementById('whatsapp-number').value = phoneParts.slice(1).join(' ');
       document.getElementById('whatsapp-department').value = item.department;
       document.getElementById('whatsapp-modal').classList.add('active');
     }
   }
 
-  closeEmailModal() {
-    document.getElementById('email-modal').classList.remove('active');
+  openWhatsAppModal() {
     this.editingIndex = -1;
     this.editingConfigId = null;
+    
+    document.getElementById('whatsapp-modal-title').textContent = 'Agregar WhatsApp';
+    document.getElementById('whatsapp-name').value = '';
+    document.getElementById('whatsapp-code').value = '+504';
+    document.getElementById('whatsapp-number').value = '';
+    document.getElementById('whatsapp-department').value = '';
+    
+    document.getElementById('whatsapp-modal').classList.add('active');
   }
 
   closeWhatsAppModal() {
@@ -1178,49 +1258,50 @@ updateAggregatedEmotions(aggregatedEmotions) {
   }
 
   async confirmDelete() {
-  const reason = document.getElementById('delete-reason').value.trim();
+    const reason = document.getElementById('delete-reason').value.trim();
 
-  if (!reason) {
-    alert('Por favor indica el motivo de la eliminación');
-    return;
-  }
+    if (!reason) {
+      alert('Por favor indica el motivo de la eliminación');
+      return;
+    }
 
-  // Soft delete en DB
-  if (this.deleteConfigId && !this.deleteConfigId.toString().startsWith('local_')) {
-    await this.deleteFromDatabase(this.deleteConfigId);
-  }
+    if (this.deleteConfigId && !this.deleteConfigId.toString().startsWith('local_')) {
+      await this.deleteFromDatabase(this.deleteConfigId);
+    }
 
-  // Eliminar del array
-  this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
-  
-  this.saveToStorage();
-  
-  this.closeDeleteModal();
+    this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
+    
+    // ✅ LIMPIAR CACHE del canal eliminado
+    if (this.monitoredItems[this.deleteItemChannel].length === 0) {
+      delete this.realDataCache[this.deleteItemChannel];
+    }
+    
+    this.saveToStorage();
+    this.closeDeleteModal();
 
-  // ✅ FORZAR ACTUALIZACIÓN DE UI
-  if (this.deleteItemChannel === 'email' || this.deleteItemChannel === 'whatsapp') {
-    this.renderMonitoredList();
-  } else {
-    this.renderSocialConfig();
+    if (this.deleteItemChannel === 'email' || this.deleteItemChannel === 'whatsapp') {
+      this.renderMonitoredList();
+    } else {
+      this.renderSocialConfig();
+    }
+    
+    await this.loadRealDataForChannel(this.currentChannel);
+    
+    if (window.dashboard && typeof window.dashboard.setSelectedChannel === 'function') {
+      window.dashboard.setSelectedChannel(this.currentChannel);
+    }
+    
+    if (window.showNotification) {
+      window.showNotification('Elemento eliminado correctamente', 'success');
+    }
   }
-  
-  // ✅ RECARGAR DATOS Y ACTUALIZAR GRÁFICA
-  await this.loadRealDataForChannel(this.currentChannel);
-  
-  // ✅ ACTUALIZAR DASHBOARD
-  if (window.dashboard && typeof window.dashboard.setSelectedChannel === 'function') {
-    window.dashboard.setSelectedChannel(this.currentChannel);
-  }
-  
-  if (window.showNotification) {
-    window.showNotification('Elemento eliminado correctamente', 'success');
-  }
-}
 
   saveToStorage() {
     try {
       localStorage.setItem('t2b_monitored_items', JSON.stringify(this.monitoredItems));
       localStorage.setItem('t2b_flow_direction', JSON.stringify(this.flowDirection));
+      // ✅ GUARDAR CACHE para persistencia
+      localStorage.setItem('t2b_data_cache', JSON.stringify(this.realDataCache));
     } catch (error) {
       console.error('Error en almacenamiento local');
     }
@@ -1236,6 +1317,13 @@ updateAggregatedEmotions(aggregatedEmotions) {
       const flowStored = localStorage.getItem('t2b_flow_direction');
       if (flowStored) {
         this.flowDirection = JSON.parse(flowStored);
+      }
+
+      // ✅ CARGAR CACHE guardado
+      const cacheStored = localStorage.getItem('t2b_data_cache');
+      if (cacheStored) {
+        this.realDataCache = JSON.parse(cacheStored);
+        console.log('✅ Cache de datos cargado desde localStorage');
       }
     } catch (error) {
       console.error('Error cargando datos locales');
@@ -1259,4 +1347,4 @@ updateAggregatedEmotions(aggregatedEmotions) {
 
 window.channelManager = new ChannelManager();
 
-console.log('✅ Channel Manager v4.1 - CARGA AUTOMÁTICA CORREGIDA');
+console.log('✅ Channel Manager v5.1 - DATOS PERSISTENTES + EMOCIONES 3+3');
