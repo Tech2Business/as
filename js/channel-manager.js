@@ -141,110 +141,127 @@ class ChannelManager {
   }
 
   processRealData(channel, response) {
-    try {
-      const data = response.data || [];
+  try {
+    const data = response.data || [];
 
-      if (data.length === 0) {
-        console.warn(`⚠️ Array de datos vacío para ${channel}`);
-        this.showEmptyState();
-        return;
-      }
-
-      let positiveCount = 0, neutralCount = 0, negativeCount = 0;
-      const primaryEmotionsMap = {};
-      const secondaryEmotionsMap = {};
-
-      // Procesar cada registro
-      data.forEach(item => {
-        const score = item.sentiment_score || 50;
-        
-        // Clasificar sentimiento
-        if (score >= 60) {
-          positiveCount++;
-        } else if (score >= 40) {
-          neutralCount++;
-        } else {
-          negativeCount++;
-        }
-
-        // Extraer emociones primarias
-        if (item.primary_emotions && typeof item.primary_emotions === 'object') {
-          Object.entries(item.primary_emotions).forEach(([emotion, value]) => {
-            if (!primaryEmotionsMap[emotion]) {
-              primaryEmotionsMap[emotion] = 0;
-            }
-            primaryEmotionsMap[emotion] += value;
-          });
-        }
-
-        // Extraer emociones secundarias
-        if (item.secondary_emotions && typeof item.secondary_emotions === 'object') {
-          Object.entries(item.secondary_emotions).forEach(([emotion, value]) => {
-            if (!secondaryEmotionsMap[emotion]) {
-              secondaryEmotionsMap[emotion] = 0;
-            }
-            secondaryEmotionsMap[emotion] += value;
-          });
-        }
-      });
-
-      const total = data.length;
-      
-      // Calcular porcentajes de sentimientos
-      const sentimentData = {
-        positive: Math.round((positiveCount / total) * 100),
-        neutral: Math.round((neutralCount / total) * 100),
-        negative: Math.round((negativeCount / total) * 100),
-        total: total,
-        positiveCount: positiveCount,
-        neutralCount: neutralCount,
-        negativeCount: negativeCount
-      };
-
-      sentimentData.score = sentimentData.positive - sentimentData.negative;
-
-      // Calcular promedio de emociones
-      const primaryEmotions = {};
-      Object.keys(primaryEmotionsMap).forEach(emotion => {
-        primaryEmotions[emotion] = Math.round((primaryEmotionsMap[emotion] / total) * 100);
-      });
-
-      const secondaryEmotions = {};
-      Object.keys(secondaryEmotionsMap).forEach(emotion => {
-        secondaryEmotions[emotion] = Math.round((secondaryEmotionsMap[emotion] / total) * 100);
-      });
-
-      const allEmotions = { ...primaryEmotions, ...secondaryEmotions };
-
-      console.log(`📊 Datos procesados para ${channel}:`, {
-        sentimentData,
-        emociones: Object.keys(allEmotions).length
-      });
-
-      // Guardar en cache
-      this.realDataCache[channel] = {
-        sentimentData,
-        emotions: allEmotions,
-        rawData: data,
-        timestamp: Date.now()
-      };
-
-      // Mostrar en UI
-      document.getElementById('empty-state').style.display = 'none';
-      document.getElementById('results-container').classList.add('active');
-
-      if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
-        window.dashboard.updateKPIs(sentimentData);
-      }
-
-      this.updateChartWithRealData(channel);
-      this.updateEmotionsWithRealData(allEmotions);
-
-    } catch (error) {
-      console.error('❌ Error procesando datos REALES:', error);
+    if (data.length === 0) {
+      console.warn(`⚠️ Array de datos vacío para ${channel}`);
       this.showEmptyState();
+      return;
     }
+
+    let positiveCount = 0, neutralCount = 0, negativeCount = 0;
+    const primaryEmotionsMap = {};
+    const secondaryEmotionsMap = {};
+
+    console.log(`📊 Procesando ${data.length} registros para ${channel}`);
+
+    // Procesar cada registro
+    data.forEach(item => {
+      const score = item.sentiment_score || 50;
+      
+      // Clasificar sentimiento
+      if (score >= 60) {
+        positiveCount++;
+      } else if (score >= 40) {
+        neutralCount++;
+      } else {
+        negativeCount++;
+      }
+
+      // ✅ FIX: Extraer emociones primarias con conversión de valor
+      if (item.primary_emotions && typeof item.primary_emotions === 'object') {
+        Object.entries(item.primary_emotions).forEach(([emotion, value]) => {
+          if (!primaryEmotionsMap[emotion]) {
+            primaryEmotionsMap[emotion] = 0;
+          }
+          // Convertir valor a número
+          const numValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+          primaryEmotionsMap[emotion] += numValue;
+        });
+      }
+
+      // ✅ FIX: Extraer emociones secundarias con conversión de valor
+      if (item.secondary_emotions && typeof item.secondary_emotions === 'object') {
+        Object.entries(item.secondary_emotions).forEach(([emotion, value]) => {
+          if (!secondaryEmotionsMap[emotion]) {
+            secondaryEmotionsMap[emotion] = 0;
+          }
+          // Convertir valor a número
+          const numValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+          secondaryEmotionsMap[emotion] += numValue;
+        });
+      }
+    });
+
+    const total = data.length;
+    
+    console.log(`📊 Emociones primarias encontradas:`, Object.keys(primaryEmotionsMap).length);
+    console.log(`📊 Emociones secundarias encontradas:`, Object.keys(secondaryEmotionsMap).length);
+    
+    // Calcular porcentajes de sentimientos
+    const sentimentData = {
+      positive: Math.round((positiveCount / total) * 100),
+      neutral: Math.round((neutralCount / total) * 100),
+      negative: Math.round((negativeCount / total) * 100),
+      total: total,
+      positiveCount: positiveCount,
+      neutralCount: neutralCount,
+      negativeCount: negativeCount
+    };
+
+    sentimentData.score = sentimentData.positive - sentimentData.negative;
+
+    // ✅ FIX: Calcular promedio de emociones (convertir de 0-1 a 0-100)
+    const primaryEmotions = {};
+    Object.keys(primaryEmotionsMap).forEach(emotion => {
+      const avgValue = primaryEmotionsMap[emotion] / total;
+      // Si el valor está entre 0 y 1, multiplicar por 100
+      primaryEmotions[emotion] = avgValue < 2 ? Math.round(avgValue * 100) : Math.round(avgValue);
+    });
+
+    const secondaryEmotions = {};
+    Object.keys(secondaryEmotionsMap).forEach(emotion => {
+      const avgValue = secondaryEmotionsMap[emotion] / total;
+      // Si el valor está entre 0 y 1, multiplicar por 100
+      secondaryEmotions[emotion] = avgValue < 2 ? Math.round(avgValue * 100) : Math.round(avgValue);
+    });
+
+    const allEmotions = { ...primaryEmotions, ...secondaryEmotions };
+
+    console.log(`📊 Datos procesados para ${channel}:`, {
+      sentimentData,
+      primaryEmotions: Object.keys(primaryEmotions).length,
+      secondaryEmotions: Object.keys(secondaryEmotions).length,
+      ejemploPrimaria: Object.entries(primaryEmotions)[0],
+      ejemploSecundaria: Object.entries(secondaryEmotions)[0]
+    });
+
+    // Guardar en cache
+    this.realDataCache[channel] = {
+      sentimentData,
+      emotions: allEmotions,
+      rawData: data,
+      timestamp: Date.now()
+    };
+
+    // Mostrar en UI
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('results-container').classList.add('active');
+
+    if (window.dashboard && typeof window.dashboard.updateKPIs === 'function') {
+      window.dashboard.updateKPIs(sentimentData);
+    }
+
+    this.updateChartWithRealData(channel);
+    this.updateEmotionsWithRealData(allEmotions);
+
+  } catch (error) {
+    console.error('❌ Error procesando datos REALES:', error);
+    this.showEmptyState();
   }
+}
+
 
   processAllChannelsData(response) {
     try {
@@ -373,47 +390,76 @@ class ChannelManager {
   }
 
   updateEmotionsWithRealData(emotions) {
-    if (!emotions || Object.keys(emotions).length === 0) {
-      console.warn('⚠️ No hay emociones para mostrar');
-      return;
-    }
-
-    const primaryEmotionsList = ['feliz', 'triste', 'enojado', 'neutral', 'asustado', 'sorprendido'];
-    const primary = [];
-    const secondary = [];
-
-    Object.entries(emotions).forEach(([emotion, value]) => {
-      const emotionData = {
-        emoji: window.dashboard.getEmotionEmoji(emotion),
-        name: this.capitalizeFirst(emotion),
-        value: value,
-        color: window.dashboard.getEmotionColor(emotion)
-      };
-
-      if (primaryEmotionsList.includes(emotion)) {
-        primary.push(emotionData);
-      } else {
-        secondary.push(emotionData);
-      }
-    });
-
-    primary.sort((a, b) => b.value - a.value);
-    secondary.sort((a, b) => b.value - a.value);
-
-    console.log('📊 Emociones a renderizar:', {
-      primarias: primary.slice(0, 3).length,
-      secundarias: secondary.slice(0, 3).length
-    });
-
-    if (window.dashboard && typeof window.dashboard.renderEmotions === 'function') {
-      if (primary.length > 0) {
-        window.dashboard.renderEmotions('primary-emotions', primary.slice(0, 3));
-      }
-      if (secondary.length > 0) {
-        window.dashboard.renderEmotions('secondary-emotions', secondary.slice(0, 3));
-      }
-    }
+  console.log('🔍 updateEmotionsWithRealData llamado');
+  console.log('🔍 Emociones recibidas:', emotions);
+  console.log('🔍 Total emociones:', Object.keys(emotions || {}).length);
+  
+  if (!emotions || Object.keys(emotions).length === 0) {
+    console.warn('⚠️ No hay emociones para mostrar');
+    
+    // Limpiar contenedores
+    const primaryContainer = document.getElementById('primary-emotions');
+    const secondaryContainer = document.getElementById('secondary-emotions');
+    if (primaryContainer) primaryContainer.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 1rem;">Sin datos</p>';
+    if (secondaryContainer) secondaryContainer.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 1rem;">Sin datos</p>';
+    return;
   }
+
+  const primaryEmotionsList = ['feliz', 'triste', 'enojado', 'neutral', 'asustado', 'sorprendido', 'disgustado', 'ansioso'];
+  const primary = [];
+  const secondary = [];
+
+  Object.entries(emotions).forEach(([emotion, value]) => {
+    // Asegurar que value es un número válido
+    const numValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+    
+    if (numValue <= 0) return; // Saltar emociones con valor 0
+    
+    const emotionData = {
+      emoji: window.SentimentUtils?.getEmotionEmoji(emotion) || window.dashboard?.getEmotionEmoji(emotion) || '❔',
+      name: this.capitalizeFirst(emotion),
+      value: Math.round(numValue),
+      color: window.SentimentUtils?.getEmotionColor(emotion) || window.dashboard?.getEmotionColor(emotion) || '#6b7280'
+    };
+
+    if (primaryEmotionsList.includes(emotion.toLowerCase())) {
+      primary.push(emotionData);
+    } else {
+      secondary.push(emotionData);
+    }
+  });
+
+  primary.sort((a, b) => b.value - a.value);
+  secondary.sort((a, b) => b.value - a.value);
+
+  console.log('📊 Emociones a renderizar:', {
+    primarias: primary.length,
+    secundarias: secondary.length,
+    top_primarias: primary.slice(0, 3).map(e => `${e.name}: ${e.value}%`),
+    top_secundarias: secondary.slice(0, 3).map(e => `${e.name}: ${e.value}%`)
+  });
+
+  if (window.dashboard && typeof window.dashboard.renderEmotions === 'function') {
+    const primaryContainer = document.getElementById('primary-emotions');
+    const secondaryContainer = document.getElementById('secondary-emotions');
+    
+    if (primary.length > 0 && primaryContainer) {
+      console.log('✅ Renderizando', primary.length, 'emociones primarias');
+      window.dashboard.renderEmotions('primary-emotions', primary.slice(0, 3));
+    } else if (primaryContainer) {
+      primaryContainer.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 1rem;">Sin datos de emociones primarias</p>';
+    }
+    
+    if (secondary.length > 0 && secondaryContainer) {
+      console.log('✅ Renderizando', secondary.length, 'emociones secundarias');
+      window.dashboard.renderEmotions('secondary-emotions', secondary.slice(0, 3));
+    } else if (secondaryContainer) {
+      secondaryContainer.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 1rem;">Sin datos de emociones secundarias</p>';
+    }
+  } else {
+    console.error('❌ window.dashboard.renderEmotions no disponible');
+  }
+}
 
   updateAggregatedEmotions(aggregatedEmotions) {
     const primary = [];
@@ -1142,42 +1188,39 @@ class ChannelManager {
   }
 
   async confirmDelete() {
-    const reason = document.getElementById('delete-reason').value.trim();
+  const reason = document.getElementById('delete-reason').value.trim();
 
-    if (!reason) {
-      alert('Por favor indica el motivo de la eliminación');
-      return;
-    }
-
-    if (this.deleteConfigId && !this.deleteConfigId.toString().startsWith('local_')) {
-      await this.deleteFromDatabase(this.deleteConfigId);
-    }
-
-    this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
-    
-    if (this.deleteItemChannel in this.realDataCache) {
-      delete this.realDataCache[this.deleteItemChannel];
-    }
-    
-    this.saveToStorage();
-    this.closeDeleteModal();
-
-    if (this.deleteItemChannel === 'email' || this.deleteItemChannel === 'whatsapp') {
-      this.renderMonitoredList();
-    } else {
-      this.renderSocialConfig();
-    }
-    
-    await this.loadRealDataForChannel(this.currentChannel);
-    
-    if (window.dashboard && typeof window.dashboard.setSelectedChannel === 'function') {
-      window.dashboard.setSelectedChannel(this.currentChannel);
-    }
-    
-    if (window.showNotification) {
-      window.showNotification('Elemento eliminado correctamente', 'success');
-    }
+  if (!reason) {
+    alert('Por favor indica el motivo de la eliminación');
+    return;
   }
+
+  if (this.deleteConfigId && !this.deleteConfigId.toString().startsWith('local_')) {
+    await this.deleteFromDatabase(this.deleteConfigId);
+  }
+
+  this.monitoredItems[this.deleteItemChannel].splice(this.deleteItemIndex, 1);
+  
+  if (this.deleteItemChannel in this.realDataCache) {
+    delete this.realDataCache[this.deleteItemChannel];
+  }
+  
+  this.saveToStorage();
+  this.closeDeleteModal();
+
+  // ✅ FIX: Forzar recarga completa
+  console.log('🔄 Recargando configuración del canal');
+  await this.renderChannelConfig();
+  await this.loadRealDataForChannel(this.currentChannel);
+  
+  if (window.dashboard && typeof window.dashboard.setSelectedChannel === 'function') {
+    window.dashboard.setSelectedChannel(this.currentChannel);
+  }
+  
+  if (window.showNotification) {
+    window.showNotification('Elemento eliminado correctamente', 'success');
+  }
+}
 
   saveToStorage() {
     try {
